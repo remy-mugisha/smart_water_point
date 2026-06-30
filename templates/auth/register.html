@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Register - Smart Water Monitoring{% endblock %}
+{% block content %}
+<div class="auth-panel auth-panel-wide">
+    <h1>Register</h1>
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="row">
+            <div class="col-md-6 mb-3">{{ form.username.label(class="form-label") }}{{ form.username(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.email.label(class="form-label") }}{{ form.email(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.full_name.label(class="form-label") }}{{ form.full_name(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.phone.label(class="form-label") }}{{ form.phone(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.district.label(class="form-label") }}{{ form.district(class="form-select") }}</div>
+            <div class="col-md-6 mb-3">{{ form.role.label(class="form-label") }}{{ form.role(class="form-select") }}</div>
+            <div class="col-md-6 mb-3">{{ form.password.label(class="form-label") }}{{ form.password(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ form.confirm_password.label(class="form-label") }}{{ form.confirm_password(class="form-control") }}</div>
+        </div>
+        <button class="btn btn-primary" type="submit">Register</button>
+    </form>
+</div>
+{% endblock %}

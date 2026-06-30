@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Map{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Water Point Map</h1>
+        <p>Geographic view of monitored points.</p>
+    </div>
+</div>
+<div id="map"></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const points = [
+    {% for wp in water_points %}
+    {
+        id: {{ wp.water_point_id|tojson }},
+        lat: {{ wp.latitude }},
+        lng: {{ wp.longitude }},
+        status: {{ wp.current_status|tojson }},
+        technology: {{ wp.technology_type|tojson }},
+        risk: {{ (wp.risk_probability or 0)|round(2) }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+</script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

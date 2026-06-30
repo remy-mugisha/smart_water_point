@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Audit Logs{% endblock %}
+{% block content %}
+<div class="content-panel">
+    <h1>Audit Logs</h1>
+    {% set recent_logs = logs.items %}
+    {% include "admin/_audit_table.html" %}
+</div>
+{% endblock %}

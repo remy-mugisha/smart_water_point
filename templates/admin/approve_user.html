@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Approve User{% endblock %}
+{% block content %}
+<div class="content-panel">
+    <h1>Review {{ user.full_name }}</h1>
+    <p>{{ user.email }} / {{ user.role }} / {{ user.district }}</p>
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">{{ form.action.label(class="form-label") }}{{ form.action(class="form-select") }}</div>
+        <div class="mb-3">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control", rows="3") }}</div>
+        <button class="btn btn-primary" type="submit">Submit Decision</button>
+    </form>
+</div>
+{% endblock %}

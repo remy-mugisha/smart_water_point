@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Water Points{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Water Points</h1>
+        <p>Monitor status, technology, population served, and risk scores.</p>
+    </div>
+    {% if current_user.role in ['admin', 'district_technician', 'district_manager'] %}
+    <a class="btn btn-primary" href="{{ url_for('dashboard.upload_data') }}"><i class="fa-solid fa-upload"></i> Upload Data</a>
+    {% endif %}
+</div>
+<div class="content-panel">
+    {% include "dashboard/_water_points_table.html" %}
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Admin Dashboard</h1>
+        <p>User approvals, system activity, and water point coverage.</p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('admin.users') }}"><i class="fa-solid fa-users"></i> Manage Users</a>
+</div>
+<div class="stats-grid">
+    <div class="stat-card"><span>Users</span><strong>{{ total_users }}</strong></div>
+    <div class="stat-card"><span>Pending</span><strong>{{ pending_users }}</strong></div>
+    <div class="stat-card"><span>Water Points</span><strong>{{ total_water_points }}</strong></div>
+    <div class="stat-card"><span>At Risk</span><strong>{{ at_risk_points }}</strong></div>
+</div>
+<div class="content-panel">
+    <h2>Recent Audit Logs</h2>
+    {% include "admin/_audit_table.html" with context %}
+</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+water_point_id,district,sector,cell,latitude,longitude,technology_type,year_installed,population_served,depth,rainfall,rainfall_month
+WP-001,Nyagatare,Rwimiyaga,Kabeza,-1.295,30.327,hand_pump,2017,420,48,82,2026-06
+WP-002,Bugesera,Nyamata,Kanazi,-2.150,30.105,borehole,2019,760,61,74,2026-06
+WP-003,Kayonza,Mukarange,Nyagatovu,-1.885,30.626,solar_pump,2021,1180,55,91,2026-06

@@ -1,0 +1,142 @@
+:root {
+    --primary: #0f6f8f;
+    --ink: #1d2939;
+    --muted: #667085;
+    --surface: #ffffff;
+    --line: #d0d5dd;
+    --bg: #f6f8fb;
+}
+
+body {
+    background: var(--bg);
+    color: var(--ink);
+}
+
+h1 {
+    font-size: 1.75rem;
+    margin-bottom: .25rem;
+}
+
+h2 {
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
+}
+
+.navbar.bg-primary,
+.btn-primary {
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+.flash-wrap,
+.page-header,
+.content-panel,
+.stats-grid {
+    max-width: 1180px;
+    margin-inline: auto;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.page-header p,
+.form-hint,
+.empty-state,
+small {
+    color: var(--muted);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stat-card,
+.content-panel,
+.auth-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+}
+
+.stat-card {
+    padding: 1rem;
+}
+
+.stat-card span {
+    display: block;
+    color: var(--muted);
+    font-size: .9rem;
+}
+
+.stat-card strong {
+    font-size: 2rem;
+}
+
+.content-panel {
+    padding: 1.25rem;
+}
+
+.auth-panel {
+    max-width: 430px;
+    margin: 4rem auto;
+    padding: 1.5rem;
+}
+
+.auth-panel-wide {
+    max-width: 760px;
+}
+
+.badge {
+    border-radius: 999px;
+    padding: .4rem .65rem;
+}
+
+.status-functional {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-at-risk {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-non-functional {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+#map {
+    height: calc(100vh - 180px);
+    min-height: 520px;
+    max-width: 1180px;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+@media (max-width: 800px) {
+    .page-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

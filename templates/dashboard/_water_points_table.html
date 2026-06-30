@@ -1,0 +1,32 @@
+{% if water_points %}
+<div class="table-responsive">
+    <table class="table align-middle">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>District</th>
+            <th>Technology</th>
+            <th>Status</th>
+            <th>Risk</th>
+            <th>Population</th>
+            <th>Updated</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for wp in water_points %}
+        <tr>
+            <td>{{ wp.water_point_id }}</td>
+            <td>{{ wp.district }}</td>
+            <td>{{ wp.technology_type }}</td>
+            <td><span class="badge status-{{ wp.current_status|lower|replace(' ', '-') }}">{{ wp.current_status }}</span></td>
+            <td>{{ "%.0f"|format((wp.risk_probability or 0) * 100) }}%</td>
+            <td>{{ wp.population_served or "-" }}</td>
+            <td>{{ wp.last_updated.strftime("%Y-%m-%d") if wp.last_updated else "-" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="empty-state">No water points available yet.</p>
+{% endif %}

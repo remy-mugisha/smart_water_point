@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="content-panel">
+    <h1>Profile</h1>
+    <form method="post">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">{{ form.full_name.label(class="form-label") }}{{ form.full_name(class="form-control") }}</div>
+        <div class="mb-3">{{ form.email.label(class="form-label") }}{{ form.email(class="form-control") }}</div>
+        <div class="mb-3">{{ form.phone.label(class="form-label") }}{{ form.phone(class="form-control") }}</div>
+        <button class="btn btn-primary" type="submit">Save Profile</button>
+    </form>
+</div>
+{% endblock %}

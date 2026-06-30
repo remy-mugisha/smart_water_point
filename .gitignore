@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+smart_water.db
+instance/
+data/uploaded/*
+!data/uploaded/.gitkeep
+models/*.pkl
+!models/.gitkeep
