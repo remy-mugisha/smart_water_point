@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Notifications</h1>
+        <p>Task and system updates for your account.</p>
+    </div>
+    {% if notifications %}
+    <form method="post" action="{{ url_for('notifications.mark_all_read') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-secondary" type="submit">Mark all as read</button>
+    </form>
+    {% endif %}
+</div>
+<div class="content-panel">
+    {% if notifications %}
+    <ul class="list-unstyled">
+        {% for n in notifications %}
+        <li class="mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
+            <form method="post" action="{{ url_for('notifications.mark_read', notification_id=n.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-link p-0 text-start {% if n.is_read %}text-muted{% else %}fw-semibold{% endif %}">
+                    {{ n.title }}
+                </button>
+            </form>
+            <div>{{ n.message }}</div>
+            <small>{{ n.created_at.strftime("%Y-%m-%d %H:%M") }}</small>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty-state">No notifications yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

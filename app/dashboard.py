@@ -24,6 +24,7 @@ def index():
         "at_risk": len([wp for wp in water_points if wp.current_status == "At Risk"]),
         "functional": len([wp for wp in water_points if wp.current_status == "Functional"]),
         "non_functional": len([wp for wp in water_points if wp.current_status == "Non-Functional"]),
+        "under_repair": len([wp for wp in water_points if wp.current_status == "Under Repair"]),
     }
     return render_template("dashboard/index.html", water_points=water_points, **status_counts)
 

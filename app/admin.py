@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 
 from app import db
 from app.forms import AdminApprovalForm
-from app.models import AuditLog, User, WaterPoint
+from app.models import AuditLog, ReportLog, User, WaterPoint
 from app.utils import admin_required
 
 admin_bp = Blueprint("admin", __name__)
@@ -95,3 +95,13 @@ def audit_logs():
 @admin_required
 def system_settings():
     return render_template("admin/system_settings.html")
+
+
+@admin_bp.route("/report-logs")
+@login_required
+@admin_required
+def report_logs():
+    logs = ReportLog.query.order_by(ReportLog.generated_at.desc()).paginate(
+        page=request.args.get("page", 1, type=int), per_page=50, error_out=False
+    )
+    return render_template("admin/report_logs.html", logs=logs)

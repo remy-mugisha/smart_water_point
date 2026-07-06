@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "reports/_filter_bar.html" import filter_bar %}
+{% from "reports/_export_buttons.html" import export_buttons %}
+{% from "reports/_pagination.html" import pagination_controls %}
+{% block title %}Maintenance Report{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Maintenance Report</h1>
+        <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
+    </div>
+</div>
+{{ filter_bar(filters, fields=['district', 'sector', 'technician', 'status', 'date_range'], district_choices=district_choices, technician_choices=technician_choices) }}
+{{ export_buttons(url_for('reports.maintenance_report_pdf', **request.args), url_for('reports.maintenance_report_excel', **request.args)) }}
+<div class="stats-grid">
+    <div class="stat-card"><span>Total Tasks</span><strong>{{ report.summary.total }}</strong></div>
+    <div class="stat-card"><span>Completed</span><strong>{{ report.summary.completed }}</strong></div>
+    <div class="stat-card"><span>In Progress</span><strong>{{ report.summary.in_progress }}</strong></div>
+    <div class="stat-card"><span>Pending</span><strong>{{ report.summary.pending }}</strong></div>
+</div>
+<div class="content-panel">
+    <h2>Monthly Maintenance Activities</h2>
+    {% if report.chart_data.labels %}
+    <canvas id="maintenanceLineChart" height="100"></canvas>
+    {% else %}
+    <p class="empty-state">No maintenance activity recorded yet.</p>
+    {% endif %}
+</div>
+<div class="content-panel mt-3">
+    <h2>Functional vs At Risk Over Time</h2>
+    <p class="form-hint">Derived from completed maintenance tasks (resulting water point status per month).</p>
+    {% if trend_chart_data.labels %}
+    <canvas id="trendLineChart" height="100"></canvas>
+    {% else %}
+    <p class="empty-state">No completed maintenance tasks yet to build a trend from.</p>
+    {% endif %}
+</div>
+<div class="content-panel mt-3">
+    <h2>Details</h2>
+    {% if report.rows %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr>
+                <th>Water Point</th><th>District</th><th>Reported Issue</th>
+                <th>Assigned Technician</th><th>Repair Date</th><th>Status</th><th>Remarks</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for r in report.rows %}
+            <tr>
+                <td>{{ r.water_point }}</td>
+                <td>{{ r.district }}</td>
+                <td>{{ r.issue }}</td>
+                <td>{{ r.technician }}</td>
+                <td>{{ r.repair_date.strftime('%Y-%m-%d') if r.repair_date else '-' }}</td>
+                <td>{{ r.status | capitalize }}</td>
+                <td>{{ r.remarks or '-' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ pagination_controls(report.pagination) }}
+    {% else %}
+    <p class="empty-state">No maintenance tasks found for the selected filters.</p>
+    {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports-charts.js') }}"></script>
+<script>
+    const maintenanceChartData = {{ report.chart_data | tojson }};
+    const trendChartData = {{ trend_chart_data | tojson }};
+    document.addEventListener("DOMContentLoaded", function () {
+        ReportCharts.renderLine("maintenanceLineChart", maintenanceChartData);
+        ReportCharts.renderLine("trendLineChart", trendChartData);
+    });
+</script>
+{% endblock %}

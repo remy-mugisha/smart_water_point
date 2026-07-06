@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "reports/_filter_bar.html" import filter_bar %}
+{% from "reports/_export_buttons.html" import export_buttons %}
+{% from "reports/_pagination.html" import pagination_controls %}
+{% block title %}Predictive Risk Report{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Predictive Risk Report</h1>
+        <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
+    </div>
+</div>
+{{ filter_bar(filters, fields=['district', 'sector', 'technology_type', 'risk_level'], district_choices=district_choices) }}
+{{ export_buttons(url_for('reports.predictive_risk_report_pdf', **request.args), url_for('reports.predictive_risk_report_excel', **request.args)) }}
+<div class="stats-grid">
+    <div class="stat-card"><span>Assessed Water Points</span><strong>{{ report.summary.total }}</strong></div>
+    <div class="stat-card"><span>Low Risk</span><strong>{{ report.summary.low }}</strong></div>
+    <div class="stat-card"><span>Medium Risk</span><strong>{{ report.summary.medium }}</strong></div>
+    <div class="stat-card"><span>High Risk</span><strong>{{ report.summary.high }}</strong></div>
+</div>
+<div class="content-panel">
+    <h2>Risk Distribution</h2>
+    {% if report.summary.total %}
+    <canvas id="riskPieChart" height="110"></canvas>
+    {% else %}
+    <p class="empty-state">No water points have been risk-assessed yet.</p>
+    {% endif %}
+</div>
+<div class="content-panel mt-3">
+    <h2>Details</h2>
+    {% if report.rows %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr><th>Water Point ID</th><th>Location</th><th>Technology Type</th><th>Risk Level</th><th>Prediction Date</th></tr>
+            </thead>
+            <tbody>
+            {% for r in report.rows %}
+            <tr>
+                <td>{{ r.water_point_id }}</td>
+                <td>{{ r.location }}</td>
+                <td>{{ r.technology_type }}</td>
+                <td>{{ r.risk_level }}</td>
+                <td>{{ r.prediction_date.strftime('%Y-%m-%d') if r.prediction_date else '-' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ pagination_controls(report.pagination) }}
+    {% else %}
+    <p class="empty-state">No water points found for the selected filters.</p>
+    {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports-charts.js') }}"></script>
+<script>
+    const riskChartData = {{ report.chart_data | tojson }};
+    document.addEventListener("DOMContentLoaded", function () {
+        ReportCharts.renderPie("riskPieChart", riskChartData);
+    });
+</script>
+{% endblock %}

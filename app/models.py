@@ -13,6 +13,38 @@ class UserRole(Enum):
     VIEWER = "viewer"
 
 
+class WaterPointStatus(Enum):
+    FUNCTIONAL = "Functional"
+    AT_RISK = "At Risk"
+    NON_FUNCTIONAL = "Non-Functional"
+    UNDER_REPAIR = "Under Repair"
+
+
+WATER_POINT_STATUSES = [status.value for status in WaterPointStatus]
+
+
+class TaskPriority(Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+TASK_PRIORITIES = [priority.value for priority in TaskPriority]
+
+
+class TaskStatus(Enum):
+    PENDING = "pending"
+    ASSIGNED = "assigned"
+    ACCEPTED = "accepted"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    VERIFIED = "verified"
+
+
+TASK_STATUS_FLOW = [status.value for status in TaskStatus]
+
+
 class User(UserMixin, db.Model):
     __tablename__ = "users"
 
@@ -89,6 +121,59 @@ class MaintenanceVisit(db.Model):
         return f"<MaintenanceVisit {self.id}>"
 
 
+class MaintenanceTask(db.Model):
+    __tablename__ = "maintenance_tasks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    water_point_id = db.Column(db.Integer, db.ForeignKey("water_points.id"), nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    verified_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    priority = db.Column(db.String(20), default=TaskPriority.MEDIUM.value, nullable=False)
+    status = db.Column(db.String(20), default=TaskStatus.PENDING.value, nullable=False)
+    deadline = db.Column(db.DateTime)
+    completion_notes = db.Column(db.Text)
+    resulting_status = db.Column(db.String(20))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    assigned_at = db.Column(db.DateTime)
+    accepted_at = db.Column(db.DateTime)
+    started_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    verified_at = db.Column(db.DateTime)
+
+    water_point = db.relationship("WaterPoint", backref=db.backref("tasks", lazy=True))
+    creator = db.relationship("User", foreign_keys=[created_by_id], backref="created_tasks")
+    technician = db.relationship("User", foreign_keys=[assigned_to_id], backref="assigned_tasks")
+    verifier = db.relationship("User", foreign_keys=[verified_by_id], backref="verified_tasks")
+    history = db.relationship(
+        "TaskStatusHistory", backref="task", lazy=True, order_by="TaskStatusHistory.timestamp", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self):
+        return f"<MaintenanceTask {self.id} {self.status}>"
+
+
+class TaskStatusHistory(db.Model):
+    __tablename__ = "task_status_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("maintenance_tasks.id"), nullable=False)
+    changed_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    from_status = db.Column(db.String(20))
+    to_status = db.Column(db.String(20), nullable=False)
+    note = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    changed_by = db.relationship("User")
+
+    def __repr__(self):
+        return f"<TaskStatusHistory task={self.task_id} {self.from_status}->{self.to_status}>"
+
+
 class Notification(db.Model):
     __tablename__ = "notifications"
 
@@ -117,3 +202,21 @@ class AuditLog(db.Model):
 
     def __repr__(self):
         return f"<AuditLog {self.action}>"
+
+
+class ReportLog(db.Model):
+    __tablename__ = "report_logs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    report_type = db.Column(db.String(50), nullable=False)
+    export_format = db.Column(db.String(20), nullable=False)
+    generated_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    filters_json = db.Column(db.Text)
+    district_scope = db.Column(db.String(100))
+    row_count = db.Column(db.Integer)
+
+    generated_by = db.relationship("User", backref="report_logs")
+
+    def __repr__(self):
+        return f"<ReportLog {self.report_type} {self.export_format}>"

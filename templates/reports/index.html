@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Reports &amp; Analytics</h1>
+        <p>Generate, filter, and export operational reports.</p>
+    </div>
+</div>
+<div class="report-cards">
+    <a class="report-card" href="{{ url_for('reports.status_report') }}">
+        <i class="fa-solid fa-droplet"></i>
+        <h2>Water Point Status Report</h2>
+        <p>Fleet-wide functional / at-risk / repair breakdown.</p>
+    </a>
+    <a class="report-card" href="{{ url_for('reports.technician_performance_report') }}">
+        <i class="fa-solid fa-user-gear"></i>
+        <h2>Technician Performance Report</h2>
+        <p>Assigned / completed tasks, completion rate, resolution time.</p>
+    </a>
+    <a class="report-card" href="{{ url_for('reports.maintenance_report') }}">
+        <i class="fa-solid fa-wrench"></i>
+        <h2>Maintenance Report</h2>
+        <p>Per-task repair history and remarks.</p>
+    </a>
+    <a class="report-card" href="{{ url_for('reports.predictive_risk_report') }}">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <h2>Predictive Risk Report</h2>
+        <p>ML-driven risk levels by water point.</p>
+    </a>
+    <a class="report-card" href="{{ url_for('reports.district_summary_report') }}">
+        <i class="fa-solid fa-map-location-dot"></i>
+        <h2>District / Sector Summary</h2>
+        <p>Aggregate status counts per district.</p>
+    </a>
+    {% if current_user.role == 'admin' %}
+    <a class="report-card" href="{{ url_for('admin.report_logs') }}">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <h2>Report Activity Log</h2>
+        <p>Who generated which report, and when.</p>
+    </a>
+    {% endif %}
+</div>
+{% endblock %}

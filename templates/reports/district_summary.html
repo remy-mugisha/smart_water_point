@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "reports/_filter_bar.html" import filter_bar %}
+{% from "reports/_export_buttons.html" import export_buttons %}
+{% block title %}District/Sector Summary Report{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>District / Sector Summary Report</h1>
+        <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
+    </div>
+</div>
+{{ filter_bar(filters, fields=['group_by']) }}
+{{ export_buttons(url_for('reports.district_summary_report_pdf', **request.args), url_for('reports.district_summary_report_excel', **request.args)) }}
+<div class="stats-grid">
+    <div class="stat-card"><span>Groups</span><strong>{{ report.summary.total_groups }}</strong></div>
+    <div class="stat-card"><span>Total Water Points</span><strong>{{ report.summary.total }}</strong></div>
+    <div class="stat-card"><span>Functional</span><strong>{{ report.summary.functional }}</strong></div>
+    <div class="stat-card"><span>At Risk</span><strong>{{ report.summary.at_risk }}</strong></div>
+    <div class="stat-card"><span>Maintenance Cases</span><strong>{{ report.summary.maintenance_cases }}</strong></div>
+</div>
+<div class="content-panel">
+    <h2>Water Points {{ 'per Sector' if report.group_by_sector else 'per District' }}</h2>
+    {% if report.rows %}
+    <canvas id="districtBarChart" height="110"></canvas>
+    {% else %}
+    <p class="empty-state">No water points match the selected filters.</p>
+    {% endif %}
+</div>
+<div class="content-panel mt-3">
+    <h2>Details</h2>
+    {% if report.rows %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr>
+                <th>District</th>
+                {% if report.group_by_sector %}<th>Sector</th>{% endif %}
+                <th>Total</th><th>Functional</th><th>At Risk</th><th>Maintenance Cases</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for r in report.rows %}
+            <tr>
+                <td>{{ r.district }}</td>
+                {% if report.group_by_sector %}<td>{{ r.sector or '-' }}</td>{% endif %}
+                <td>{{ r.total }}</td>
+                <td>{{ r.functional }}</td>
+                <td>{{ r.at_risk }}</td>
+                <td>{{ r.maintenance_cases }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No data found for the selected filters.</p>
+    {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/reports-charts.js') }}"></script>
+<script>
+    const districtChartData = {{ report.chart_data | tojson }};
+    document.addEventListener("DOMContentLoaded", function () {
+        ReportCharts.renderBar("districtBarChart", districtChartData);
+    });
+</script>
+{% endblock %}

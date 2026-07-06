@@ -1,9 +1,17 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
-from wtforms import BooleanField, FileField, PasswordField, SelectField, StringField, TextAreaField
+from wtforms import (
+    BooleanField,
+    DateTimeField,
+    FileField,
+    PasswordField,
+    SelectField,
+    StringField,
+    TextAreaField,
+)
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError
 
-from app.models import User
+from app.models import TASK_PRIORITIES, User
 
 DISTRICT_CHOICES = [
     ("", "Select District"),
@@ -76,3 +84,37 @@ class UserProfileForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     phone = StringField("Phone Number", validators=[Optional(), Length(max=20)])
     email = StringField("Email", validators=[DataRequired(), Email()])
+
+
+class TaskCreateForm(FlaskForm):
+    water_point = SelectField("Water Point", choices=[], validators=[DataRequired()])
+    technician = SelectField("Assign To", choices=[], validators=[Optional()])
+    title = StringField("Task Title", validators=[DataRequired(), Length(max=200)])
+    description = TextAreaField("Description", validators=[Optional()])
+    priority = SelectField(
+        "Priority", choices=[(p, p.capitalize()) for p in TASK_PRIORITIES], validators=[DataRequired()]
+    )
+    deadline = DateTimeField("Deadline", format="%Y-%m-%d", validators=[Optional()])
+
+
+class TaskAssignForm(FlaskForm):
+    technician = SelectField("Assign To", choices=[], validators=[DataRequired()])
+
+
+class TaskProgressForm(FlaskForm):
+    note = TextAreaField("Progress Update", validators=[DataRequired(), Length(max=1000)])
+
+
+class TaskCompleteForm(FlaskForm):
+    resulting_status = SelectField(
+        "Water Point Status After Repair",
+        choices=[("Functional", "Functional"), ("At Risk", "At Risk"), ("Non-Functional", "Non-Functional")],
+        validators=[DataRequired()],
+    )
+    completion_notes = TextAreaField(
+        "Completion Notes (actions taken, parts replaced)", validators=[DataRequired(), Length(max=2000)]
+    )
+
+
+class TaskVerifyForm(FlaskForm):
+    note = TextAreaField("Verification Notes (Optional)", validators=[Optional(), Length(max=1000)])

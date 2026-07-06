@@ -1,0 +1,83 @@
+{% macro filter_bar(filters, fields=[], district_choices=None, technician_choices=None) %}
+<form method="get" class="filter-bar content-panel row g-2 align-items-end mb-3">
+  {% if 'district' in fields and district_choices %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">District</label>
+    <select name="district" class="form-select form-select-sm">
+      <option value="">All</option>
+      {% for value, label in district_choices %}
+      {% if value %}
+      <option value="{{ value }}" {% if filters.district == value %}selected{% endif %}>{{ label }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  {% if 'sector' in fields %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">Sector</label>
+    <input type="text" name="sector" class="form-control form-control-sm" value="{{ filters.sector or '' }}" placeholder="Any sector">
+  </div>
+  {% endif %}
+  {% if 'technician' in fields and technician_choices %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">Technician</label>
+    <select name="technician_id" class="form-select form-select-sm">
+      {% for value, label in technician_choices %}
+      <option value="{{ value }}" {% if filters.technician_id and filters.technician_id|string == value|string %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  {% if 'status' in fields %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">Status</label>
+    <select name="status" class="form-select form-select-sm">
+      <option value="">All</option>
+      {% for s in ['pending', 'assigned', 'accepted', 'in_progress', 'completed', 'verified'] %}
+      <option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s | capitalize }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  {% if 'technology_type' in fields %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">Technology Type</label>
+    <input type="text" name="technology_type" class="form-control form-control-sm" value="{{ filters.technology_type or '' }}" placeholder="e.g. borehole">
+  </div>
+  {% endif %}
+  {% if 'risk_level' in fields %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">Risk Level</label>
+    <select name="risk_level" class="form-select form-select-sm">
+      <option value="">All</option>
+      {% for lvl in ['Low', 'Medium', 'High'] %}
+      <option value="{{ lvl }}" {% if filters.risk_level == lvl %}selected{% endif %}>{{ lvl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  {% if 'date_range' in fields %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">From</label>
+    <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request.args.get('date_from', '') }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-0">To</label>
+    <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request.args.get('date_to', '') }}">
+  </div>
+  {% endif %}
+  {% if 'group_by' in fields %}
+  <div class="col-auto">
+    <label class="form-label small mb-0">Group By</label>
+    <select name="group_by" class="form-select form-select-sm">
+      <option value="district" {% if filters.group_by == 'district' %}selected{% endif %}>District</option>
+      <option value="sector" {% if filters.group_by == 'sector' %}selected{% endif %}>District + Sector</option>
+    </select>
+  </div>
+  {% endif %}
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-primary"><i class="fa-solid fa-filter"></i> Apply Filters</button>
+  </div>
+</form>
+{% endmacro %}

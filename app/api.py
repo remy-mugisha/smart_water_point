@@ -4,7 +4,7 @@ from flask_login import current_user, login_required
 from app import db
 from app.dashboard import load_prediction_model, predict_risk, process_water_point_data
 from app.models import WaterPoint
-from app.utils import role_required
+from app.utils import api_role_required
 
 api_bp = Blueprint("api", __name__)
 
@@ -18,7 +18,7 @@ def get_water_points():
 
 @api_bp.route("/water-points/<string:point_id>/status", methods=["PUT"])
 @login_required
-@role_required("admin", "district_technician", "district_manager")
+@api_role_required("admin", "district_technician", "district_manager")
 def update_status(point_id):
     water_point = WaterPoint.query.filter_by(water_point_id=point_id).first()
     if water_point is None:
@@ -37,7 +37,7 @@ def update_status(point_id):
 
 @api_bp.route("/upload", methods=["POST"])
 @login_required
-@role_required("admin", "district_technician", "district_manager")
+@api_role_required("admin", "district_technician", "district_manager")
 def upload_api():
     if "file" not in request.files:
         return jsonify({"error": "No file provided"}), 400
@@ -61,6 +61,7 @@ def upload_api():
 
 @api_bp.route("/predict", methods=["POST"])
 @login_required
+@api_role_required("admin", "district_technician", "district_manager")
 def predict():
     model = load_prediction_model()
     if model is None:

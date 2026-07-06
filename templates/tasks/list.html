@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Maintenance Tasks{% endblock %}
+{% block content %}
+{% set status_colors = {'pending':'secondary','assigned':'info','accepted':'primary','in_progress':'warning','completed':'success','verified':'dark'} %}
+{% set priority_colors = {'low':'secondary','medium':'info','high':'warning','critical':'danger'} %}
+<div class="page-header">
+    <div>
+        <h1>Maintenance Tasks</h1>
+        <p>
+            {% if current_user.role == 'district_technician' %}Tasks assigned to you.
+            {% elif current_user.role == 'admin' %}All maintenance tasks.
+            {% else %}Tasks for {{ current_user.district }}.{% endif %}
+        </p>
+    </div>
+    {% if current_user.role in ['admin', 'district_manager'] %}
+    <a class="btn btn-primary" href="{{ url_for('tasks.create_task') }}"><i class="fa-solid fa-plus"></i> New Task</a>
+    {% endif %}
+</div>
+<div class="content-panel table-responsive">
+    {% if tasks %}
+    <table class="table align-middle">
+        <thead>
+        <tr>
+            <th>Title</th>
+            <th>Water Point</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Technician</th>
+            <th>Deadline</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for task in tasks %}
+        <tr>
+            <td>{{ task.title }}</td>
+            <td>{{ task.water_point.water_point_id }} <small>({{ task.water_point.district }})</small></td>
+            <td><span class="badge bg-{{ priority_colors.get(task.priority, 'secondary') }}">{{ task.priority|capitalize }}</span></td>
+            <td><span class="badge bg-{{ status_colors.get(task.status, 'secondary') }}">{{ task.status.replace('_', ' ')|title }}</span></td>
+            <td>{{ task.technician.full_name if task.technician else "Unassigned" }}</td>
+            <td>{{ task.deadline.strftime("%Y-%m-%d") if task.deadline else "-" }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('tasks.task_detail', task_id=task.id) }}">Open</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty-state">No maintenance tasks yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

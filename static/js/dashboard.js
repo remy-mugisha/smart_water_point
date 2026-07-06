@@ -14,7 +14,8 @@
     const colors = {
         "Functional": "#16a34a",
         "At Risk": "#d97706",
-        "Non-Functional": "#dc2626"
+        "Non-Functional": "#dc2626",
+        "Under Repair": "#2563eb"
     };
 
     points.forEach((point) => {

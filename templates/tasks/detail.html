@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block content %}
+{% set status_colors = {'pending':'secondary','assigned':'info','accepted':'primary','in_progress':'warning','completed':'success','verified':'dark'} %}
+{% set priority_colors = {'low':'secondary','medium':'info','high':'warning','critical':'danger'} %}
+<div class="page-header">
+    <div>
+        <h1>{{ task.title }}</h1>
+        <p>{{ task.water_point.water_point_id }} — {{ task.water_point.district }}{% if task.water_point.sector %}, {{ task.water_point.sector }}{% endif %}</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('tasks.list_tasks') }}">Back to Tasks</a>
+</div>
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="content-panel mb-3">
+            <h2>Details</h2>
+            <p><span class="badge bg-{{ status_colors.get(task.status, 'secondary') }}">{{ task.status.replace('_', ' ')|title }}</span>
+               <span class="badge bg-{{ priority_colors.get(task.priority, 'secondary') }}">{{ task.priority|capitalize }} priority</span></p>
+            {% if task.description %}<p>{{ task.description }}</p>{% endif %}
+            <p><strong>Created by:</strong> {{ task.creator.full_name }} on {{ task.created_at.strftime("%Y-%m-%d") }}</p>
+            <p><strong>Technician:</strong> {{ task.technician.full_name if task.technician else "Unassigned" }}</p>
+            <p><strong>Deadline:</strong> {{ task.deadline.strftime("%Y-%m-%d") if task.deadline else "-" }}</p>
+            {% if task.completion_notes %}
+            <hr>
+            <p><strong>Completion Notes:</strong> {{ task.completion_notes }}</p>
+            <p><strong>Resulting Status:</strong> {{ task.resulting_status }}</p>
+            {% endif %}
+            {% if task.verifier %}
+            <p><strong>Verified by:</strong> {{ task.verifier.full_name }} on {{ task.verified_at.strftime("%Y-%m-%d") }}</p>
+            {% endif %}
+        </div>
+
+        <div class="content-panel">
+            <h2>Actions</h2>
+
+            {% if current_user.role in ['admin', 'district_manager'] and task.status == 'pending' %}
+            <form method="post" action="{{ url_for('tasks.assign_task', task_id=task.id) }}" class="mb-3">
+                {{ assign_form.hidden_tag() }}
+                <div class="mb-2">{{ assign_form.technician.label(class="form-label") }}{{ assign_form.technician(class="form-select") }}</div>
+                <button class="btn btn-primary btn-sm" type="submit">Assign Technician</button>
+            </form>
+            {% endif %}
+
+            {% if (current_user.role == 'admin' or current_user.id == task.assigned_to_id) and task.status == 'assigned' %}
+            <form method="post" action="{{ url_for('tasks.accept_task', task_id=task.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary btn-sm" type="submit">Accept Task</button>
+            </form>
+            {% endif %}
+
+            {% if (current_user.role == 'admin' or current_user.id == task.assigned_to_id) and task.status == 'accepted' %}
+            <form method="post" action="{{ url_for('tasks.start_task', task_id=task.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary btn-sm" type="submit">Start Work</button>
+            </form>
+            {% endif %}
+
+            {% if (current_user.role == 'admin' or current_user.id == task.assigned_to_id) and task.status == 'in_progress' %}
+            <form method="post" action="{{ url_for('tasks.update_progress', task_id=task.id) }}" class="mb-3">
+                {{ progress_form.hidden_tag() }}
+                <div class="mb-2">{{ progress_form.note.label(class="form-label") }}{{ progress_form.note(class="form-control", rows="2") }}</div>
+                <button class="btn btn-outline-primary btn-sm" type="submit">Log Progress</button>
+            </form>
+            <form method="post" action="{{ url_for('tasks.complete_task', task_id=task.id) }}">
+                {{ complete_form.hidden_tag() }}
+                <div class="mb-2">{{ complete_form.resulting_status.label(class="form-label") }}{{ complete_form.resulting_status(class="form-select") }}</div>
+                <div class="mb-2">{{ complete_form.completion_notes.label(class="form-label") }}{{ complete_form.completion_notes(class="form-control", rows="3") }}</div>
+                <button class="btn btn-success btn-sm" type="submit">Mark Completed</button>
+            </form>
+            {% endif %}
+
+            {% if current_user.role in ['admin', 'district_manager'] and task.status == 'completed' %}
+            <form method="post" action="{{ url_for('tasks.verify_task', task_id=task.id) }}">
+                {{ verify_form.hidden_tag() }}
+                <div class="mb-2">{{ verify_form.note.label(class="form-label") }}{{ verify_form.note(class="form-control", rows="2") }}</div>
+                <button class="btn btn-dark btn-sm" type="submit">Verify Task</button>
+            </form>
+            {% endif %}
+
+            {% if task.status == 'verified' %}
+            <p class="empty-state">This task is complete and verified. No further action needed.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="content-panel">
+            <h2>Timeline</h2>
+            {% if task.history %}
+            <ul class="list-unstyled">
+                {% for entry in task.history|reverse %}
+                <li class="mb-3">
+                    <small>{{ entry.timestamp.strftime("%Y-%m-%d %H:%M") }} — {{ entry.changed_by.full_name }}</small><br>
+                    {% if entry.from_status != entry.to_status %}
+                    <span class="badge bg-{{ status_colors.get(entry.to_status, 'secondary') }}">{{ entry.to_status.replace('_', ' ')|title }}</span>
+                    {% endif %}
+                    {% if entry.note %}<div>{{ entry.note }}</div>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">No history yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

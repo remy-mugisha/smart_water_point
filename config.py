@@ -14,6 +14,9 @@ class Config:
         "DATABASE_URL", f"sqlite:///{BASE_DIR / 'smart_water.db'}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
     UPLOAD_FOLDER = str(BASE_DIR / "data" / "uploaded")
     ALLOWED_EXTENSIONS = {"csv", "xlsx"}
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
