@@ -1,12 +1,10 @@
-from datetime import datetime
-
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
-from app.forms import AdminApprovalForm
+from app.forms import AdminApprovalForm, ChangeRoleForm
 from app.models import AuditLog, ReportLog, User, WaterPoint
-from app.utils import admin_required
+from app.utils import admin_required, utcnow
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -44,7 +42,7 @@ def approve_user(user_id):
             user.is_approved = True
             user.is_active = True
             user.approved_by = current_user.id
-            user.approved_at = datetime.utcnow()
+            user.approved_at = utcnow()
             flash(f"User {user.username} has been approved.", "success")
         else:
             user.is_active = False
@@ -61,6 +59,34 @@ def approve_user(user_id):
         return redirect(url_for("admin.users"))
 
     return render_template("admin/approve_user.html", user=user, form=form)
+
+
+@admin_bp.route("/users/<int:user_id>/change-role", methods=["POST"])
+@login_required
+@admin_required
+def change_role(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash("You cannot change your own role.", "danger")
+        return redirect(url_for("admin.users"))
+
+    form = ChangeRoleForm()
+    if not form.validate_on_submit():
+        flash("Invalid role selection.", "danger")
+        return redirect(url_for("admin.users"))
+
+    old_role = user.role
+    user.role = form.role.data
+    db.session.add(
+        AuditLog(
+            user_id=current_user.id,
+            action="user_role_changed",
+            details=f"{user.username}'s role changed from {old_role} to {user.role} by {current_user.username}",
+        )
+    )
+    db.session.commit()
+    flash(f"{user.username}'s role has been updated to {user.role}.", "success")
+    return redirect(url_for("admin.users"))
 
 
 @admin_bp.route("/users/<int:user_id>/toggle-active", methods=["POST"])

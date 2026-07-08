@@ -1,7 +1,19 @@
+from datetime import datetime, timezone
 from functools import wraps
 
-from flask import flash, jsonify, redirect, request, url_for
+from flask import flash, jsonify, redirect, url_for
 from flask_login import current_user
+
+
+def utcnow():
+    """Naive UTC timestamp, matching how every existing DateTime column/comparison
+    in this codebase already stores and compares time. datetime.utcnow() is
+    deprecated; datetime.now(timezone.utc) is its replacement but returns a
+    timezone-aware value, which SQLite doesn't store and which can't be compared
+    or subtracted against the naive values already in the database. Stripping
+    tzinfo here keeps behavior identical while avoiding the deprecation warning.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def api_role_required(*roles):
@@ -54,18 +66,20 @@ def manager_required(f):
     return role_required("admin", "district_manager")(f)
 
 
-def district_match_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        district = kwargs.get("district") or request.args.get("district") or request.form.get("district")
-        if current_user.role == "admin":
-            return f(*args, **kwargs)
-        if district and current_user.district != district:
-            flash("You do not have access to data from other districts.", "danger")
-            return redirect(url_for("dashboard.index"))
-        return f(*args, **kwargs)
+def scoped_by_district(query, district_column):
+    """Filter a query to the current user's district, unless they're an admin.
 
-    return decorated_function
+    Single source of truth for "is this user allowed to see this district's
+    data" so district-scoping doesn't get reimplemented slightly differently
+    in each blueprint.
+    """
+    if current_user.role == "admin":
+        return query
+    return query.filter(district_column == current_user.district)
+
+
+def user_can_access_district(district):
+    return current_user.role == "admin" or current_user.district == district
 
 
 def allowed_file(filename, allowed_extensions):

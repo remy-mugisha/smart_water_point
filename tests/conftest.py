@@ -3,7 +3,7 @@ import pytest
 
 from app import create_app
 from app import db as _db
-from app.models import User, WaterPoint
+from app.models import User, WaterPoint, WaterSource
 
 
 class BaseTestConfig:
@@ -27,7 +27,15 @@ def app():
     flask_app = create_app(BaseTestConfig)
     with flask_app.app_context():
         _db.create_all()
-        yield flask_app
+    # Do not hold the app context open across the yield: Flask-Login caches the
+    # logged-in user on flask.g, which lives on the app context rather than the
+    # request context. A held-open context lets that cache leak across requests
+    # made by *different* test clients (i.e. different logged-in users) within
+    # the same test, silently defeating any test that logs in two users to
+    # check district/role isolation. Real requests never hit this because the
+    # WSGI server pushes and pops a fresh context per request.
+    yield flask_app
+    with flask_app.app_context():
         _db.session.remove()
         _db.drop_all()
 
@@ -37,7 +45,8 @@ def csrf_app():
     flask_app = create_app(CSRFTestConfig)
     with flask_app.app_context():
         _db.create_all()
-        yield flask_app
+    yield flask_app
+    with flask_app.app_context():
         _db.session.remove()
         _db.drop_all()
 

@@ -33,6 +33,11 @@
         <h2>District / Sector Summary</h2>
         <p>Aggregate status counts per district.</p>
     </a>
+    <a class="report-card" href="{{ url_for('reports.source_validation_report') }}">
+        <i class="fa-solid fa-link-slash"></i>
+        <h2>Source Validation Report</h2>
+        <p>Water points not yet linked to an official Rwanda Water Board source.</p>
+    </a>
     {% if current_user.role == 'admin' %}
     <a class="report-card" href="{{ url_for('admin.report_logs') }}">
         <i class="fa-solid fa-clock-rotate-left"></i>

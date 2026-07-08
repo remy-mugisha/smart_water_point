@@ -11,7 +11,8 @@ from flask_login import current_user
 from sqlalchemy import case, func
 
 from app.dashboard import scoped_water_points
-from app.models import MaintenanceTask, User, WaterPoint
+from app.models import MaintenanceTask, User, WaterPoint, WaterSource
+from app.utils import scoped_by_district
 
 RISK_LOW_MAX = 0.33
 RISK_MEDIUM_MAX = 0.66
@@ -22,6 +23,7 @@ REPORT_TITLES = {
     "maintenance": "Maintenance Report",
     "predictive_risk": "Predictive Risk Report",
     "district_summary": "District/Sector Summary Report",
+    "source_validation": "Source Validation Report",
 }
 
 
@@ -85,11 +87,9 @@ def _scoped_maintenance_tasks_query():
     district's data.
     """
     query = MaintenanceTask.query.join(WaterPoint)
-    if current_user.role == "admin":
-        return query
     if current_user.role == "district_technician":
         return query.filter(MaintenanceTask.assigned_to_id == current_user.id)
-    return query.filter(WaterPoint.district == current_user.district)
+    return scoped_by_district(query, WaterPoint.district)
 
 
 def build_status_report(filters):
@@ -304,6 +304,31 @@ def build_district_summary_report(filters):
         "maintenance_cases": sum(r["maintenance_cases"] for r in rows),
     }
     return {"summary": summary, "chart_data": chart_data, "rows": rows, "group_by_sector": group_by_sector}
+
+
+def build_source_validation_report(filters, page=1):
+    query = scoped_water_points().filter(WaterPoint.water_source_id.is_(None))
+    if filters["district"]:
+        query = query.filter(WaterPoint.district == filters["district"])
+    if filters["sector"]:
+        query = query.filter(WaterPoint.sector == filters["sector"])
+
+    water_points = query.order_by(WaterPoint.water_point_id).all()
+    rows_all = [
+        {
+            "water_point_id": wp.water_point_id,
+            "district": wp.district,
+            "sector": wp.sector or "-",
+            "cell": wp.cell or "-",
+            "technology_type": wp.technology_type,
+            "status": wp.current_status,
+        }
+        for wp in water_points
+    ]
+
+    pagination = SimplePagination(rows_all, page)
+    summary = {"total": len(rows_all)}
+    return {"summary": summary, "rows": pagination.items, "rows_all": rows_all, "pagination": pagination}
 
 
 def build_monthly_repair_outcomes():

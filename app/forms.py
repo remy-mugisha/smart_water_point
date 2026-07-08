@@ -12,6 +12,14 @@ from wtforms import (
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError
 
 from app.models import TASK_PRIORITIES, User
+from app.rwanda_geo import (
+    BUGESERA_DISTRICT,
+    BUGESERA_SECTOR_CHOICES,
+    all_cell_choices,
+    all_village_choices,
+    cells_for_sector,
+    villages_for_cell,
+)
 
 DISTRICT_CHOICES = [
     ("", "Select District"),
@@ -28,7 +36,12 @@ class RegistrationForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     full_name = StringField("Full Name", validators=[DataRequired(), Length(min=2, max=150)])
     phone = StringField("Phone Number", validators=[Optional(), Length(max=20)])
-    district = SelectField("District", choices=DISTRICT_CHOICES, validators=[DataRequired()])
+    # This project's case study is Bugesera District only, so the address is
+    # scoped to it rather than offering all of Rwanda's districts.
+    district = SelectField("District", choices=[(BUGESERA_DISTRICT, BUGESERA_DISTRICT)], validators=[DataRequired()])
+    sector = SelectField("Sector", choices=BUGESERA_SECTOR_CHOICES, validators=[DataRequired()])
+    cell = SelectField("Cell", choices=all_cell_choices(), validators=[DataRequired()])
+    village = SelectField("Village", choices=all_village_choices(), validators=[DataRequired()])
     role = SelectField(
         "Role",
         choices=[
@@ -55,6 +68,14 @@ class RegistrationForm(FlaskForm):
         if User.query.filter_by(email=email.data).first():
             raise ValidationError("Email already registered. Please use another.")
 
+    def validate_cell(self, cell):
+        if cell.data not in cells_for_sector(self.sector.data):
+            raise ValidationError("Selected cell does not belong to the selected sector.")
+
+    def validate_village(self, village):
+        if village.data not in villages_for_cell(self.sector.data, self.cell.data):
+            raise ValidationError("Selected village does not belong to the selected cell.")
+
 
 class LoginForm(FlaskForm):
     username = StringField("Username", validators=[DataRequired()])
@@ -69,6 +90,19 @@ class AdminApprovalForm(FlaskForm):
         validators=[DataRequired()],
     )
     notes = TextAreaField("Notes (Optional)")
+
+
+class ChangeRoleForm(FlaskForm):
+    role = SelectField(
+        "Role",
+        choices=[
+            ("viewer", "Viewer"),
+            ("district_technician", "Technician"),
+            ("district_manager", "Manager"),
+            ("admin", "Admin"),
+        ],
+        validators=[DataRequired()],
+    )
 
 
 class DataUploadForm(FlaskForm):

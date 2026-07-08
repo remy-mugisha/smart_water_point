@@ -1,7 +1,7 @@
 """add maintenance task assignment and status history tables
 
 Revision ID: 90489408fe07
-Revises: 
+Revises: 87ca337431cf
 Create Date: 2026-07-04 14:18:43.334602
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '90489408fe07'
-down_revision = None
+down_revision = '87ca337431cf'
 branch_labels = None
 depends_on = None
 

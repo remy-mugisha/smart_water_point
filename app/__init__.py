@@ -70,4 +70,4 @@ def create_app(config_class=Config):
 def load_user(user_id):
     from app.models import User
 
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))

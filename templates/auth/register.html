@@ -1,21 +1,73 @@
 {% extends "base.html" %}
 {% block title %}Register - Smart Water Monitoring{% endblock %}
 {% block content %}
+{% macro field(f, cls="form-control") %}
+    {{ f.label(class="form-label") }}
+    {{ f(class=cls ~ (" is-invalid" if f.errors else ""), **kwargs) }}
+    {% if f.errors %}
+    <div class="invalid-feedback d-block">{{ f.errors[0] }}</div>
+    {% endif %}
+{% endmacro %}
 <div class="auth-panel auth-panel-wide">
     <h1>Register</h1>
     <form method="post">
         {{ form.hidden_tag() }}
         <div class="row">
-            <div class="col-md-6 mb-3">{{ form.username.label(class="form-label") }}{{ form.username(class="form-control") }}</div>
-            <div class="col-md-6 mb-3">{{ form.email.label(class="form-label") }}{{ form.email(class="form-control") }}</div>
-            <div class="col-md-6 mb-3">{{ form.full_name.label(class="form-label") }}{{ form.full_name(class="form-control") }}</div>
-            <div class="col-md-6 mb-3">{{ form.phone.label(class="form-label") }}{{ form.phone(class="form-control") }}</div>
-            <div class="col-md-6 mb-3">{{ form.district.label(class="form-label") }}{{ form.district(class="form-select") }}</div>
-            <div class="col-md-6 mb-3">{{ form.role.label(class="form-label") }}{{ form.role(class="form-select") }}</div>
-            <div class="col-md-6 mb-3">{{ form.password.label(class="form-label") }}{{ form.password(class="form-control") }}</div>
-            <div class="col-md-6 mb-3">{{ form.confirm_password.label(class="form-label") }}{{ form.confirm_password(class="form-control") }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.username) }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.email) }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.full_name) }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.phone) }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.district, cls="form-select") }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.role, cls="form-select") }}</div>
+            <div class="col-md-4 mb-3">{{ field(form.sector, cls="form-select", id="sector-select") }}</div>
+            <div class="col-md-4 mb-3">{{ field(form.cell, cls="form-select", id="cell-select") }}</div>
+            <div class="col-md-4 mb-3">{{ field(form.village, cls="form-select", id="village-select") }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.password) }}</div>
+            <div class="col-md-6 mb-3">{{ field(form.confirm_password) }}</div>
         </div>
         <button class="btn btn-primary" type="submit">Register</button>
     </form>
 </div>
+<script>
+    const SECTORS = {{ sectors | tojson }};
+    const sectorSelect = document.getElementById("sector-select");
+    const cellSelect = document.getElementById("cell-select");
+    const villageSelect = document.getElementById("village-select");
+    const initialCell = cellSelect.value;
+    const initialVillage = villageSelect.value;
+
+    function fillOptions(select, placeholder, values, selectedValue) {
+        select.innerHTML = "";
+        select.add(new Option(placeholder, ""));
+        values.forEach(function (value) {
+            const option = new Option(value, value);
+            if (value === selectedValue) {
+                option.selected = true;
+            }
+            select.add(option);
+        });
+    }
+
+    function populateCells(selectedCell) {
+        const cells = SECTORS[sectorSelect.value] || {};
+        fillOptions(cellSelect, "Select Cell", Object.keys(cells).sort(), selectedCell);
+    }
+
+    function populateVillages(selectedVillage) {
+        const cells = SECTORS[sectorSelect.value] || {};
+        const villages = cells[cellSelect.value] || [];
+        fillOptions(villageSelect, "Select Village", villages, selectedVillage);
+    }
+
+    sectorSelect.addEventListener("change", function () {
+        populateCells(null);
+        populateVillages(null);
+    });
+    cellSelect.addEventListener("change", function () {
+        populateVillages(null);
+    });
+
+    populateCells(initialCell);
+    populateVillages(initialVillage);
+</script>
 {% endblock %}

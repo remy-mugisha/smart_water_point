@@ -1,9 +1,9 @@
-from datetime import datetime
 from enum import Enum
 
 from flask_login import UserMixin
 
 from app import db
+from app.utils import utcnow
 
 
 class UserRole(Enum):
@@ -56,15 +56,17 @@ class User(UserMixin, db.Model):
     phone = db.Column(db.String(20))
     role = db.Column(db.String(50), default=UserRole.VIEWER.value)
     district = db.Column(db.String(100))
+    sector = db.Column(db.String(100))
+    cell = db.Column(db.String(100))
+    village = db.Column(db.String(100))
     is_approved = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     last_login = db.Column(db.DateTime)
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     approved_at = db.Column(db.DateTime)
 
     water_points = db.relationship("WaterPoint", backref="uploaded_by", lazy=True)
-    maintenance_visits = db.relationship("MaintenanceVisit", backref="technician", lazy=True)
     notifications = db.relationship("Notification", backref="user", lazy=True)
 
     def __repr__(self):
@@ -91,34 +93,28 @@ class WaterPoint(db.Model):
     monthly_rainfall = db.Column(db.Float)
     rainfall_month = db.Column(db.String(10))
     uploaded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    maintenance_visits = db.relationship("MaintenanceVisit", backref="water_point", lazy=True)
+    uploaded_at = db.Column(db.DateTime, default=utcnow)
+    last_updated = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+    water_source_id = db.Column(db.Integer, db.ForeignKey("water_sources.id"))
 
     def __repr__(self):
         return f"<WaterPoint {self.water_point_id}>"
 
 
-class MaintenanceVisit(db.Model):
-    __tablename__ = "maintenance_visits"
+class WaterSource(db.Model):
+    __tablename__ = "water_sources"
 
     id = db.Column(db.Integer, primary_key=True)
-    water_point_id = db.Column(db.Integer, db.ForeignKey("water_points.id"), nullable=False)
-    technician_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    visit_date = db.Column(db.DateTime, default=datetime.utcnow)
-    issue_found = db.Column(db.Text)
-    actions_taken = db.Column(db.Text)
-    status_after_visit = db.Column(db.String(20))
-    parts_replaced = db.Column(db.Text)
-    cost_estimate = db.Column(db.Float)
-    check_in_lat = db.Column(db.Float)
-    check_in_lng = db.Column(db.Float)
-    check_out_lat = db.Column(db.Float)
-    check_out_lng = db.Column(db.Float)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    catchment = db.Column(db.String(100))
+    source_type = db.Column(db.String(100))
+    usage_types = db.Column(db.Text)
+    industrial_pressure_score = db.Column(db.Float, default=0.0)
+
+    water_points = db.relationship("WaterPoint", backref="water_source", lazy=True)
 
     def __repr__(self):
-        return f"<MaintenanceVisit {self.id}>"
+        return f"<WaterSource {self.name}>"
 
 
 class MaintenanceTask(db.Model):
@@ -138,7 +134,7 @@ class MaintenanceTask(db.Model):
     completion_notes = db.Column(db.Text)
     resulting_status = db.Column(db.String(20))
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     assigned_at = db.Column(db.DateTime)
     accepted_at = db.Column(db.DateTime)
     started_at = db.Column(db.DateTime)
@@ -166,7 +162,7 @@ class TaskStatusHistory(db.Model):
     from_status = db.Column(db.String(20))
     to_status = db.Column(db.String(20), nullable=False)
     note = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=utcnow)
 
     changed_by = db.relationship("User")
 
@@ -182,7 +178,7 @@ class Notification(db.Model):
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False)
     is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     link = db.Column(db.String(200))
 
     def __repr__(self):
@@ -198,7 +194,7 @@ class AuditLog(db.Model):
     details = db.Column(db.Text)
     ip_address = db.Column(db.String(50))
     user_agent = db.Column(db.String(200))
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=utcnow)
 
     def __repr__(self):
         return f"<AuditLog {self.action}>"
@@ -211,7 +207,7 @@ class ReportLog(db.Model):
     report_type = db.Column(db.String(50), nullable=False)
     export_format = db.Column(db.String(20), nullable=False)
     generated_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    generated_at = db.Column(db.DateTime, default=utcnow)
     filters_json = db.Column(db.Text)
     district_scope = db.Column(db.String(100))
     row_count = db.Column(db.Integer)

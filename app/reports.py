@@ -13,6 +13,7 @@ from app.report_queries import (
     build_maintenance_report,
     build_monthly_repair_outcomes,
     build_predictive_risk_report,
+    build_source_validation_report,
     build_status_report,
     build_technician_performance_report,
     parse_common_filters,
@@ -256,6 +257,21 @@ def district_summary_report_excel():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True,
         download_name="district_summary_report.xlsx",
+    )
+
+
+@reports_bp.route("/source-validation")
+@login_required
+def source_validation_report():
+    filters = parse_common_filters(request.args)
+    page = request.args.get("page", 1, type=int)
+    report = build_source_validation_report(filters, page)
+    _log_report("source_validation", "view", filters, report["summary"]["total"])
+    return render_template(
+        "reports/source_validation.html",
+        report=report,
+        filters=filters,
+        district_choices=available_district_choices(),
     )
 
 

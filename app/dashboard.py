@@ -1,16 +1,16 @@
-from datetime import datetime
 from pathlib import Path
 
 import joblib
 import pandas as pd
 from flask import Blueprint, current_app, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import func
 from werkzeug.utils import secure_filename
 
 from app import db
 from app.forms import DISTRICT_CHOICES, DataUploadForm
-from app.models import AuditLog, WaterPoint
-from app.utils import allowed_file, role_required
+from app.models import AuditLog, WaterPoint, WaterSource
+from app.utils import allowed_file, role_required, scoped_by_district, utcnow
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
@@ -67,6 +67,8 @@ def upload_data():
             df = pd.read_csv(filepath) if filename.lower().endswith(".csv") else pd.read_excel(filepath)
             processed_count = process_water_point_data(df, form.district.data, current_user.id)
         except Exception as exc:
+            db.session.rollback()
+            filepath.unlink(missing_ok=True)
             flash(f"Error processing file: {exc}", "danger")
             return render_template("dashboard/upload.html", form=form)
 
@@ -85,9 +87,7 @@ def upload_data():
 
 
 def scoped_water_points():
-    if current_user.role == "admin":
-        return WaterPoint.query
-    return WaterPoint.query.filter_by(district=current_user.district)
+    return scoped_by_district(WaterPoint.query, WaterPoint.district)
 
 
 def available_district_choices():
@@ -99,13 +99,24 @@ def available_district_choices():
 
 
 def process_water_point_data(df, district, user_id):
-    required = {"water_point_id", "latitude", "longitude", "technology_type"}
+    required = {"water_point_id", "latitude", "longitude", "technology_type"};
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns: {', '.join(sorted(missing))}")
 
     count = 0
     model = load_prediction_model()
+
+    catchment_pressures = {}
+    if model is not None:
+        catchment_pressures = dict(
+            db.session.query(WaterSource.catchment, func.sum(WaterSource.industrial_pressure_score))
+            .filter(WaterSource.catchment.isnot(None))
+            .group_by(WaterSource.catchment)
+            .all()
+        )
+
+    source_map = _build_source_map(df)
 
     for _, row in df.iterrows():
         water_point = WaterPoint.query.filter_by(water_point_id=str(row.get("water_point_id"))).first()
@@ -126,18 +137,38 @@ def process_water_point_data(df, district, user_id):
         water_point.depth = float(row.get("depth")) if pd.notna(row.get("depth")) else None
         water_point.monthly_rainfall = float(row.get("rainfall")) if pd.notna(row.get("rainfall")) else None
         water_point.rainfall_month = value_or_none(row.get("rainfall_month"))
-        water_point.last_updated = datetime.utcnow()
+        water_point.last_updated = utcnow()
+        water_point.water_source_id = source_map.get(value_or_none(row.get("water_source_name")))
 
         if model:
-            prediction, probability = predict_risk(model, water_point)
+            prediction, probability = predict_risk(model, water_point, catchment_pressures)
             water_point.current_status = prediction
             water_point.risk_probability = probability
-            water_point.last_prediction_date = datetime.utcnow()
+            water_point.last_prediction_date = utcnow()
 
         count += 1
 
     db.session.commit()
     return count
+
+
+def _build_source_map(df):
+    if "water_source_name" not in df.columns:
+        return {}
+    names = sorted(set(value_or_none(n) for n in df["water_source_name"].dropna() if value_or_none(n)))
+    if not names:
+        return {}
+
+    map_ = {}
+    for upload_name in names:
+        source = (
+            WaterSource.query.filter(func.lower(WaterSource.name) == upload_name.lower()).first()
+            or WaterSource.query.filter(WaterSource.name.ilike(f"%{upload_name}%")).first()
+            or WaterSource.query.filter(func.lower(WaterSource.name).like(f"%{upload_name.lower()}%")).first()
+        )
+        if source:
+            map_[upload_name] = source.id
+    return map_
 
 
 def value_or_none(value):
@@ -154,8 +185,11 @@ def load_prediction_model():
         return None
 
 
-def predict_risk(model, water_point):
-    features = [[water_point.year_installed or 0, water_point.population_served or 0, water_point.monthly_rainfall or 0]]
+def predict_risk(model, water_point, catchment_pressures=None):
+    catchment_pressure = 0.0
+    if getattr(water_point, "water_source", None) and water_point.water_source.catchment:
+        catchment_pressure = catchment_pressures.get(water_point.water_source.catchment, 0.0) if catchment_pressures is not None else 0.0
+    features = [[water_point.year_installed or 0, water_point.population_served or 0, water_point.monthly_rainfall or 0, catchment_pressure]]
     probability = model.predict_proba(features)[0]
     risk_prob = float(probability[1] if len(probability) > 1 else probability[0])
     return ("At Risk" if risk_prob > 0.5 else "Functional"), risk_prob

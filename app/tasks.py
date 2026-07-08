@@ -1,12 +1,10 @@
-from datetime import datetime
-
 from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
 
 from app import db
 from app.forms import TaskAssignForm, TaskCompleteForm, TaskCreateForm, TaskProgressForm, TaskVerifyForm
 from app.models import AuditLog, MaintenanceTask, TaskStatus, TaskStatusHistory, User, WaterPoint
-from app.utils import manager_required, notify, technician_required
+from app.utils import manager_required, notify, scoped_by_district, technician_required, user_can_access_district, utcnow
 
 tasks_bp = Blueprint("tasks", __name__)
 
@@ -28,14 +26,14 @@ def create_task():
     form.technician.choices = [("", "Unassigned (assign later)")] + available_technician_choices()
 
     if form.validate_on_submit():
-        water_point = WaterPoint.query.get(int(form.water_point.data))
+        water_point = db.session.get(WaterPoint, int(form.water_point.data))
         if water_point is None or not user_can_access_district(water_point.district):
             flash("Invalid water point selection.", "danger")
             return render_template("tasks/create.html", form=form)
 
         technician = None
         if form.technician.data:
-            technician = User.query.get(int(form.technician.data))
+            technician = db.session.get(User, int(form.technician.data))
             if technician is None or technician.district != water_point.district:
                 flash("Selected technician must belong to the water point's district.", "danger")
                 return render_template("tasks/create.html", form=form)
@@ -101,7 +99,7 @@ def assign_task(task_id):
         flash("Please select a valid technician.", "danger")
         return redirect(url_for("tasks.task_detail", task_id=task.id))
 
-    technician = User.query.get(int(form.technician.data))
+    technician = db.session.get(User, int(form.technician.data))
     if technician is None or technician.district != task.water_point.district:
         flash("Technician must belong to the water point's district.", "danger")
         return redirect(url_for("tasks.task_detail", task_id=task.id))
@@ -123,7 +121,7 @@ def accept_task(task_id):
         flash("Only assigned tasks can be accepted.", "danger")
         return redirect(url_for("tasks.task_detail", task_id=task.id))
 
-    task.accepted_at = datetime.utcnow()
+    task.accepted_at = utcnow()
     _transition(task, TaskStatus.ACCEPTED.value, f"Accepted by {current_user.full_name}")
     notify(task.created_by_id, "Task accepted", f"{current_user.full_name} accepted task '{task.title}'.", link=url_for("tasks.task_detail", task_id=task.id))
     db.session.add(AuditLog(user_id=current_user.id, action="task_accepted", details=f"Task '{task.title}' accepted"))
@@ -142,7 +140,7 @@ def start_task(task_id):
         flash("Only accepted tasks can be started.", "danger")
         return redirect(url_for("tasks.task_detail", task_id=task.id))
 
-    task.started_at = datetime.utcnow()
+    task.started_at = utcnow()
     task.water_point.current_status = "Under Repair"
     _transition(task, TaskStatus.IN_PROGRESS.value, f"Started by {current_user.full_name}")
     db.session.add(AuditLog(user_id=current_user.id, action="task_started", details=f"Task '{task.title}' started"))
@@ -189,7 +187,7 @@ def complete_task(task_id):
         flash("Completion notes and resulting status are required.", "danger")
         return redirect(url_for("tasks.task_detail", task_id=task.id))
 
-    task.completed_at = datetime.utcnow()
+    task.completed_at = utcnow()
     task.completion_notes = form.completion_notes.data
     task.resulting_status = form.resulting_status.data
     task.water_point.current_status = form.resulting_status.data
@@ -217,7 +215,7 @@ def verify_task(task_id):
         return redirect(url_for("tasks.task_detail", task_id=task.id))
 
     form = TaskVerifyForm()
-    task.verified_at = datetime.utcnow()
+    task.verified_at = utcnow()
     task.verified_by_id = current_user.id
     _transition(task, TaskStatus.VERIFIED.value, form.note.data or f"Verified by {current_user.full_name}")
     if task.assigned_to_id:
@@ -234,15 +232,13 @@ def verify_task(task_id):
 
 
 def scoped_tasks():
-    if current_user.role == "admin":
-        return MaintenanceTask.query
-    if current_user.role == "district_manager":
-        return MaintenanceTask.query.join(WaterPoint).filter(WaterPoint.district == current_user.district)
-    return MaintenanceTask.query.filter_by(assigned_to_id=current_user.id)
+    if current_user.role == "district_technician":
+        return MaintenanceTask.query.filter_by(assigned_to_id=current_user.id)
+    return scoped_by_district(MaintenanceTask.query.join(WaterPoint), WaterPoint.district)
 
 
 def available_water_point_choices():
-    query = WaterPoint.query if current_user.role == "admin" else WaterPoint.query.filter_by(district=current_user.district)
+    query = scoped_by_district(WaterPoint.query, WaterPoint.district)
     return [(str(wp.id), f"{wp.water_point_id} — {wp.district} ({wp.current_status})") for wp in query.order_by(WaterPoint.water_point_id).all()]
 
 
@@ -252,10 +248,6 @@ def available_technician_choices(district=None):
     if scope_district:
         query = query.filter_by(district=scope_district)
     return [(str(u.id), f"{u.full_name} ({u.district})") for u in query.order_by(User.full_name).all()]
-
-
-def user_can_access_district(district):
-    return current_user.role == "admin" or current_user.district == district
 
 
 def _ensure_task_access(task):
@@ -277,7 +269,7 @@ def _ensure_assignee_or_admin(task):
 
 def _assign_technician(task, technician):
     task.assigned_to_id = technician.id
-    task.assigned_at = datetime.utcnow()
+    task.assigned_at = utcnow()
     _transition(task, TaskStatus.ASSIGNED.value, f"Assigned to {technician.full_name}")
     notify(
         technician.id,

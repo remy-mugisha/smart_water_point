@@ -9,18 +9,30 @@
 </div>
 <div class="content-panel table-responsive">
     <table class="table align-middle">
-        <thead><tr><th>Name</th><th>Role</th><th>District</th><th>Approved</th><th>Active</th><th></th></tr></thead>
+        <thead><tr><th>Name</th><th>Role</th><th>District</th><th>Location</th><th>Approved</th><th>Active</th><th></th></tr></thead>
         <tbody>
         {% for user in users %}
         <tr>
             <td>{{ user.full_name }}<br><small>{{ user.username }} / {{ user.email }}</small></td>
             <td>{{ user.role }}</td>
             <td>{{ user.district or "-" }}</td>
+            <td>{{ [user.sector, user.cell, user.village] | select | join(" / ") or "-" }}</td>
             <td>{{ "Yes" if user.is_approved else "No" }}</td>
             <td>{{ "Yes" if user.is_active else "No" }}</td>
             <td class="text-end">
                 {% if not user.is_approved and user.is_active %}
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.approve_user', user_id=user.id) }}">Review</a>
+                {% endif %}
+                {% if user.id != current_user.id %}
+                <form class="d-inline" method="post" action="{{ url_for('admin.change_role', user_id=user.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="role" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                        <option value="viewer" {{ "selected" if user.role == "viewer" }}>Viewer</option>
+                        <option value="district_technician" {{ "selected" if user.role == "district_technician" }}>Technician</option>
+                        <option value="district_manager" {{ "selected" if user.role == "district_manager" }}>Manager</option>
+                        <option value="admin" {{ "selected" if user.role == "admin" }}>Admin</option>
+                    </select>
+                </form>
                 {% endif %}
                 <form class="d-inline" method="post" action="{{ url_for('admin.toggle_user_active', user_id=user.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

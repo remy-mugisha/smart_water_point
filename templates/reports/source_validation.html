@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "reports/_filter_bar.html" import filter_bar %}
+{% from "reports/_export_buttons.html" import export_buttons %}
+{% block title %}Source Validation Report{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Source Validation Report</h1>
+        <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
+    </div>
+</div>
+{{ filter_bar(filters, fields=['district', 'sector'], district_choices=district_choices) }}
+<div class="stats-grid">
+    <div class="stat-card"><span>Unmatched Water Points</span><strong>{{ report.summary.total }}</strong></div>
+</div>
+<div class="content-panel">
+    <h2>Water Points Without Official Source Link</h2>
+    {% if report.rows_all %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr>
+                <th>Water Point ID</th>
+                <th>District</th>
+                <th>Sector</th>
+                <th>Cell</th>
+                <th>Technology Type</th>
+                <th>Current Status</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for r in report.rows_all %}
+            <tr>
+                <td>{{ r.water_point_id }}</td>
+                <td>{{ r.district }}</td>
+                <td>{{ r.sector }}</td>
+                <td>{{ r.cell }}</td>
+                <td>{{ r.technology_type }}</td>
+                <td>{{ r.status }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if report.pagination.pages > 1 %}
+    {% include "reports/_pagination.html" %}
+    {% endif %}
+    {% else %}
+    <p class="empty-state">All water points are linked to an official source. No validation issues found.</p>
+    {% endif %}
+</div>
+{% endblock %}
