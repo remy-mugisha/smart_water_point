@@ -4,12 +4,15 @@ from wtforms import (
     BooleanField,
     DateTimeField,
     FileField,
+    FloatField,
+    IntegerField,
     PasswordField,
     SelectField,
     StringField,
+    SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, ValidationError
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp, ValidationError
 
 from app.models import TASK_PRIORITIES, User
 from app.rwanda_geo import (
@@ -120,6 +123,30 @@ class UserProfileForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
 
 
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField("Current Password", validators=[DataRequired()])
+    new_password = PasswordField(
+        "New Password",
+        validators=[
+            DataRequired(),
+            Length(min=8, max=72, message="Password must be 8-72 characters"),
+            Regexp(
+                r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)",
+                message="Password must include an uppercase letter, a lowercase letter, and a digit",
+            ),
+        ],
+    )
+    confirm_new_password = PasswordField(
+        "Confirm New Password",
+        validators=[DataRequired(), EqualTo("new_password", message="Passwords must match")],
+    )
+
+
+class PreferencesForm(FlaskForm):
+    theme = SelectField("Theme", choices=[("light", "Light"), ("dark", "Dark")], validators=[DataRequired()])
+    notifications_enabled = BooleanField("Enable in-app notifications")
+
+
 class TaskCreateForm(FlaskForm):
     water_point = SelectField("Water Point", choices=[], validators=[DataRequired()])
     technician = SelectField("Assign To", choices=[], validators=[Optional()])
@@ -152,3 +179,13 @@ class TaskCompleteForm(FlaskForm):
 
 class TaskVerifyForm(FlaskForm):
     note = TextAreaField("Verification Notes (Optional)", validators=[Optional(), Length(max=1000)])
+
+
+class SystemSettingsForm(FlaskForm):
+    app_name = StringField("System Name", validators=[DataRequired(), Length(max=150)])
+    admin_email = StringField("Admin Contact Email", validators=[DataRequired(), Email()])
+    risk_threshold = FloatField("At-Risk Probability Threshold", validators=[DataRequired()])
+    session_cookie_secure = BooleanField("Secure Cookies (HTTPS only)")
+    max_upload_mb = IntegerField("Max Upload Size (MB)", validators=[DataRequired()])
+    default_district = SelectField("Default District", choices=DISTRICT_CHOICES)
+    submit = SubmitField("Save Settings")

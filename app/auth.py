@@ -5,7 +5,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db
-from app.forms import LoginForm, RegistrationForm, UserProfileForm
+from app.forms import ChangePasswordForm, LoginForm, PreferencesForm, RegistrationForm, UserProfileForm
 from app.models import AuditLog, User
 from app.rwanda_geo import BUGESERA_SECTORS
 from app.utils import utcnow
@@ -109,15 +109,77 @@ def pending_approval():
     return render_template("auth/pending_approval.html")
 
 
-@auth_bp.route("/profile", methods=["GET", "POST"])
+@auth_bp.route("/settings")
 @login_required
-def profile():
-    form = UserProfileForm(obj=current_user)
+def settings():
+    profile_form = UserProfileForm(obj=current_user)
+    password_form = ChangePasswordForm()
+    preferences_form = PreferencesForm(
+        theme=current_user.theme_preference, notifications_enabled=current_user.notifications_enabled
+    )
+    return render_template(
+        "auth/settings.html",
+        profile_form=profile_form,
+        password_form=password_form,
+        preferences_form=preferences_form,
+    )
+
+
+@auth_bp.route("/settings/profile", methods=["POST"])
+@login_required
+def update_profile():
+    form = UserProfileForm()
     if form.validate_on_submit():
         current_user.full_name = form.full_name.data
         current_user.phone = form.phone.data
         current_user.email = form.email.data
         db.session.commit()
         flash("Profile updated successfully.", "success")
-        return redirect(url_for("auth.profile"))
-    return render_template("auth/profile.html", form=form)
+    else:
+        for error_list in form.errors.values():
+            flash(error_list[0], "danger")
+    return redirect(url_for("auth.settings"))
+
+
+@auth_bp.route("/settings/password", methods=["POST"])
+@login_required
+def change_password():
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if not bcrypt.checkpw(
+            form.current_password.data.encode("utf-8"), current_user.password_hash.encode("utf-8")
+        ):
+            flash("Current password is incorrect.", "danger")
+            return redirect(url_for("auth.settings"))
+
+        current_user.password_hash = bcrypt.hashpw(
+            form.new_password.data.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+        db.session.add(
+            AuditLog(
+                user_id=current_user.id,
+                action="password_changed",
+                details=f"User {current_user.username} changed their password",
+            )
+        )
+        db.session.commit()
+        flash("Password changed successfully.", "success")
+    else:
+        for error_list in form.errors.values():
+            flash(error_list[0], "danger")
+    return redirect(url_for("auth.settings"))
+
+
+@auth_bp.route("/settings/preferences", methods=["POST"])
+@login_required
+def update_preferences():
+    form = PreferencesForm()
+    if form.validate_on_submit():
+        current_user.theme_preference = form.theme.data
+        current_user.notifications_enabled = form.notifications_enabled.data
+        db.session.commit()
+        flash("Preferences updated.", "success")
+    else:
+        for error_list in form.errors.values():
+            flash(error_list[0], "danger")
+    return redirect(url_for("auth.settings"))

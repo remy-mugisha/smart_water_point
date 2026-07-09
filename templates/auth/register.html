@@ -1,38 +1,49 @@
 {% extends "base.html" %}
 {% block title %}Register - Smart Water Monitoring{% endblock %}
-{% block content %}
-{% macro field(f, cls="form-control") %}
-    {{ f.label(class="form-label") }}
-    {{ f(class=cls ~ (" is-invalid" if f.errors else ""), **kwargs) }}
-    {% if f.errors %}
-    <div class="invalid-feedback d-block">{{ f.errors[0] }}</div>
-    {% endif %}
+{% block body_class %}register-page-body{% endblock %}
+{% block navbar %}{% endblock %}
+{% macro field(f, cls="form-control register-input") %}
+    {% set input_id = kwargs.get('id', f.id) %}
+    <div class="register-field" id="{{ input_id }}-field">
+        <label for="{{ input_id }}" class="register-label">
+            {{ f.label.text }}
+            {% if f.flags.required %}<span class="required-mark">*</span>{% endif %}
+        </label>
+        {{ f(class=cls ~ (" is-invalid" if f.errors else ""), **kwargs) }}
+        {% if f.errors %}
+        <div class="invalid-feedback d-block">{{ f.errors[0] }}</div>
+        {% endif %}
+    </div>
 {% endmacro %}
-<div class="auth-panel auth-panel-wide">
-    <h1>Register</h1>
-    <form method="post">
-        {{ form.hidden_tag() }}
-        <div class="row">
-            <div class="col-md-6 mb-3">{{ field(form.username) }}</div>
-            <div class="col-md-6 mb-3">{{ field(form.email) }}</div>
-            <div class="col-md-6 mb-3">{{ field(form.full_name) }}</div>
-            <div class="col-md-6 mb-3">{{ field(form.phone) }}</div>
-            <div class="col-md-6 mb-3">{{ field(form.district, cls="form-select") }}</div>
-            <div class="col-md-6 mb-3">{{ field(form.role, cls="form-select") }}</div>
-            <div class="col-md-4 mb-3">{{ field(form.sector, cls="form-select", id="sector-select") }}</div>
-            <div class="col-md-4 mb-3">{{ field(form.cell, cls="form-select", id="cell-select") }}</div>
-            <div class="col-md-4 mb-3">{{ field(form.village, cls="form-select", id="village-select") }}</div>
-            <div class="col-md-6 mb-3">{{ field(form.password) }}</div>
-            <div class="col-md-6 mb-3">{{ field(form.confirm_password) }}</div>
-        </div>
-        <button class="btn btn-primary" type="submit">Register</button>
-    </form>
+{% block content %}
+<div class="register-page">
+    <h1 class="register-heading">Create Your Account</h1>
+    <div class="register-card">
+        <form method="post">
+            {{ form.hidden_tag() }}
+            {{ field(form.username) }}
+            {{ field(form.email) }}
+            {{ field(form.full_name) }}
+            {{ field(form.phone) }}
+            {{ field(form.district, cls="form-select register-input") }}
+            {{ field(form.role, cls="form-select register-input") }}
+            {{ field(form.sector, cls="form-select register-input", id="sector-select") }}
+            {{ field(form.cell, cls="form-select register-input", id="cell-select") }}
+            {{ field(form.village, cls="form-select register-input", id="village-select") }}
+            {{ field(form.password) }}
+            {{ field(form.confirm_password) }}
+            <button class="btn register-submit w-100" type="submit">Sign Up</button>
+        </form>
+        <p class="register-footer">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+    </div>
 </div>
 <script>
     const SECTORS = {{ sectors | tojson }};
     const sectorSelect = document.getElementById("sector-select");
     const cellSelect = document.getElementById("cell-select");
     const villageSelect = document.getElementById("village-select");
+    const cellField = document.getElementById("cell-select-field");
+    const villageField = document.getElementById("village-select-field");
     const initialCell = cellSelect.value;
     const initialVillage = villageSelect.value;
 
@@ -62,11 +73,16 @@
     sectorSelect.addEventListener("change", function () {
         populateCells(null);
         populateVillages(null);
+        cellField.style.display = sectorSelect.value ? "" : "none";
+        villageField.style.display = "none";
     });
     cellSelect.addEventListener("change", function () {
         populateVillages(null);
+        villageField.style.display = cellSelect.value ? "" : "none";
     });
 
+    cellField.style.display = sectorSelect.value ? "" : "none";
+    villageField.style.display = cellSelect.value ? "" : "none";
     populateCells(initialCell);
     populateVillages(initialVillage);
 </script>

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Settings</h1>
+        <p>Manage your profile, password, and preferences.</p>
+    </div>
+</div>
+
+<div class="content-panel mb-3">
+    <h2>Profile</h2>
+    <form method="post" action="{{ url_for('auth.update_profile') }}" class="row g-3 mt-1" style="max-width: 640px;">
+        {{ profile_form.hidden_tag() }}
+        <div class="col-12">
+            {{ profile_form.full_name.label(class="form-label") }}
+            {{ profile_form.full_name(class="form-control" ~ (" is-invalid" if profile_form.full_name.errors else "")) }}
+            {% if profile_form.full_name.errors %}<div class="invalid-feedback d-block">{{ profile_form.full_name.errors[0] }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+            {{ profile_form.email.label(class="form-label") }}
+            {{ profile_form.email(class="form-control" ~ (" is-invalid" if profile_form.email.errors else "")) }}
+            {% if profile_form.email.errors %}<div class="invalid-feedback d-block">{{ profile_form.email.errors[0] }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+            {{ profile_form.phone.label(class="form-label") }}
+            {{ profile_form.phone(class="form-control" ~ (" is-invalid" if profile_form.phone.errors else "")) }}
+            {% if profile_form.phone.errors %}<div class="invalid-feedback d-block">{{ profile_form.phone.errors[0] }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Save Profile</button>
+        </div>
+    </form>
+</div>
+
+<div class="content-panel mb-3">
+    <h2>Change Password</h2>
+    <form method="post" action="{{ url_for('auth.change_password') }}" class="row g-3 mt-1" style="max-width: 640px;">
+        {{ password_form.hidden_tag() }}
+        <div class="col-12">
+            {{ password_form.current_password.label(class="form-label") }}
+            {{ password_form.current_password(class="form-control" ~ (" is-invalid" if password_form.current_password.errors else "")) }}
+            {% if password_form.current_password.errors %}<div class="invalid-feedback d-block">{{ password_form.current_password.errors[0] }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+            {{ password_form.new_password.label(class="form-label") }}
+            {{ password_form.new_password(class="form-control" ~ (" is-invalid" if password_form.new_password.errors else "")) }}
+            {% if password_form.new_password.errors %}<div class="invalid-feedback d-block">{{ password_form.new_password.errors[0] }}</div>{% endif %}
+            <div class="form-text">At least 8 characters, with an uppercase letter, a lowercase letter, and a digit.</div>
+        </div>
+        <div class="col-12">
+            {{ password_form.confirm_new_password.label(class="form-label") }}
+            {{ password_form.confirm_new_password(class="form-control" ~ (" is-invalid" if password_form.confirm_new_password.errors else "")) }}
+            {% if password_form.confirm_new_password.errors %}<div class="invalid-feedback d-block">{{ password_form.confirm_new_password.errors[0] }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Change Password</button>
+        </div>
+    </form>
+</div>
+
+<div class="content-panel">
+    <h2>Preferences</h2>
+    <form method="post" action="{{ url_for('auth.update_preferences') }}" class="row g-3 mt-1" style="max-width: 640px;">
+        {{ preferences_form.hidden_tag() }}
+        <div class="col-12">
+            {{ preferences_form.theme.label(class="form-label") }}
+            {{ preferences_form.theme(class="form-select") }}
+            <div class="form-text">Dark mode applies across the whole app.</div>
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                {{ preferences_form.notifications_enabled(class="form-check-input") }}
+                {{ preferences_form.notifications_enabled.label(class="form-check-label") }}
+            </div>
+            <div class="form-text">Turn off to stop receiving in-app notifications (e.g. task assignments).</div>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">Save Preferences</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

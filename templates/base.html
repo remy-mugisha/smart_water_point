@@ -10,7 +10,8 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}{% if current_user.is_authenticated and current_user.theme_preference == 'dark' %} theme-dark{% endif %}">
+{% block navbar %}
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container-fluid">
         <a class="navbar-brand fw-semibold" href="{{ url_for('dashboard.index') }}">
@@ -27,9 +28,6 @@
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.water_points') }}">Water Points</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('tasks.list_tasks') }}">Tasks</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.index') }}">Reports</a></li>
-                {% if current_user.role in ['admin', 'district_technician', 'district_manager'] %}
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.upload_data') }}">Upload</a></li>
-                {% endif %}
                 {% if current_user.role == 'admin' %}
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}">Admin</a></li>
                 {% endif %}
@@ -39,8 +37,20 @@
                     <i class="fa-solid fa-bell"></i>
                     {% if unread_notification_count %}<span class="badge bg-danger">{{ unread_notification_count }}</span>{% endif %}
                 </a>
-                <a class="nav-link" href="{{ url_for('auth.profile') }}">{{ current_user.full_name }}</a>
-                <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {{ current_user.full_name }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                        <li><a class="dropdown-item" href="{{ url_for('auth.settings') }}"><i class="fa-solid fa-gear"></i> Settings</a></li>
+                        {% if current_user.role == 'admin' %}
+                        <li><a class="dropdown-item" href="{{ url_for('admin.system_settings') }}"><i class="fa-solid fa-sliders"></i> System Settings</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin.audit_logs') }}"><i class="fa-solid fa-clipboard-list"></i> Audit Logs</a></li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
+                    </ul>
+                </div>
             </div>
             {% else %}
             <div class="navbar-nav ms-auto">
@@ -51,7 +61,9 @@
         </div>
     </div>
 </nav>
+{% endblock %}
 
+{% block main_wrapper %}
 <main class="container-fluid py-4">
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -67,6 +79,7 @@
     {% endwith %}
     {% block content %}{% endblock %}
 </main>
+{% endblock %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

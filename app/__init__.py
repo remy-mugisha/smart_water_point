@@ -47,6 +47,28 @@ def create_app(config_class=Config):
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
     app.register_blueprint(reports_bp, url_prefix="/reports")
 
+    @app.before_request
+    def _load_runtime_settings():
+        from app.settings import apply_settings_to_config
+
+        try:
+            apply_settings_to_config()
+        except Exception:
+            # settings table may not exist yet on a fresh DB; fall back to config.py
+            pass
+
+    @app.after_request
+    def _prevent_page_caching(response):
+        # Without this, the browser's back/forward cache can redisplay an
+        # authenticated page (e.g. the dashboard) after logout without a
+        # fresh request ever reaching @login_required, letting a shared
+        # device fall back into a previous user's session via the back button.
+        if request.endpoint != "static":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     @app.route("/")
     def home():
         return redirect(url_for("dashboard.index"))

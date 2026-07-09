@@ -20,12 +20,25 @@ from app.utils import utcnow
 
 PRIMARY_HEX = "#0f6f8f"
 
+_HEADER_STYLE = ParagraphStyle("PdfHeader", fontName="Helvetica-Bold", fontSize=8, textColor=colors.white, leading=10)
+_CELL_STYLE = ParagraphStyle("PdfCell", fontName="Helvetica", fontSize=8, leading=10)
+
 
 def _format_filters(filters):
     applied = {k: v for k, v in filters.items() if v}
     if not applied:
         return "None"
     return ", ".join(f"{k.replace('_', ' ').title()}: {v}" for k, v in applied.items())
+
+
+def _cell(text):
+    """Wrap a table cell in a Paragraph so long values (e.g. filter JSON or
+    audit details) wrap instead of overflowing the page or being clipped."""
+    return Paragraph(str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"), _CELL_STYLE)
+
+
+def _header_cell(text):
+    return Paragraph(str(text), _HEADER_STYLE)
 
 
 def build_pdf_report(title, generated_by, filters, summary_stats, table_headers, table_rows):
@@ -70,7 +83,7 @@ def build_pdf_report(title, generated_by, filters, summary_stats, table_headers,
         elements.extend([summary_table, Spacer(1, 0.7 * cm)])
 
     if table_rows:
-        data = [table_headers] + [[str(cell) for cell in row] for row in table_rows]
+        data = [[_header_cell(h) for h in table_headers]] + [[_cell(cell) for cell in row] for row in table_rows]
         data_table = Table(data, repeatRows=1)
         style = TableStyle(
             [

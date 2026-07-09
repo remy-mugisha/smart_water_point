@@ -1,9 +1,83 @@
 {% extends "base.html" %}
+{% from "reports/_pagination.html" import pagination_controls %}
+{% from "reports/_export_buttons.html" import export_buttons %}
 {% block title %}Audit Logs{% endblock %}
 {% block content %}
+{% macro sort_th(label, col) %}
+{% set ns = namespace(parts=[]) %}
+{% for k in ['action', 'user_id', 'date_from', 'date_to'] %}
+  {% if request.args.get(k) %}{% set ns.parts = ns.parts + [k ~ "=" ~ request.args.get(k)] %}{% endif %}
+{% endfor %}
+{% set dir = 'asc' if (request.args.get('sort_by') == col and request.args.get('sort_dir') != 'asc') else 'desc' %}
+{% set _ = ns.parts.append('sort_by=' ~ col) %}
+{% set _ = ns.parts.append('sort_dir=' ~ dir) %}
+<th>
+  <a href="{{ url_for('admin.audit_logs') ~ '?' ~ ns.parts|join('&') }}" class="sort-link">{{ label }}{% if request.args.get('sort_by') == col %} {% if dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a>
+</th>
+{% endmacro %}
 <div class="content-panel">
-    <h1>Audit Logs</h1>
-    {% set recent_logs = logs.items %}
-    {% include "admin/_audit_table.html" %}
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1>Audit Logs</h1>
+            <p class="form-hint mb-0">System-wide record of administrative actions.</p>
+        </div>
+        {{ export_buttons(url_for('admin.audit_logs_pdf', **request.args.to_dict()), url_for('admin.audit_logs_excel', **request.args.to_dict())) }}
+    </div>
+
+    <form method="get" class="filter-bar row g-2 align-items-end mb-3 mt-2">
+        <div class="col-auto">
+            <label class="form-label small mb-0">Action</label>
+            <input type="text" name="action" class="form-control form-select-sm" value="{{ filters.action or '' }}" placeholder="e.g. user_role_changed">
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-0">User</label>
+            <select name="user_id" class="form-select form-select-sm">
+                <option value="">All</option>
+                {% for value, label in user_choices %}
+                <option value="{{ value }}" {% if filters.user_id and filters.user_id|string == value|string %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-0">From</label>
+            <input type="date" name="date_from" class="form-control form-control-sm" value="{{ request.args.get('date_from', '') }}">
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-0">To</label>
+            <input type="date" name="date_to" class="form-control form-control-sm" value="{{ request.args.get('date_to', '') }}">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fa-solid fa-filter"></i> Apply</button>
+            <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+
+    {% if logs.items %}
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+            <tr>
+                {{ sort_th("Time", "time") }}
+                {{ sort_th("User", "user") }}
+                {{ sort_th("Action", "action") }}
+                {{ sort_th("Details", "details") }}
+            </tr>
+            </thead>
+            <tbody>
+            {% for log in logs.items %}
+            <tr>
+                <td>{{ log.timestamp.strftime("%Y-%m-%d %H:%M") if log.timestamp else '-' }}</td>
+                <td>{{ log.user.full_name if log.user else (log.user_id or '-') }}</td>
+                <td>{{ log.action }}</td>
+                <td>{{ log.details or '-' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ pagination_controls(logs) }}
+    {% else %}
+    <p class="empty-state">No audit log entries match the selected filters.</p>
+    {% endif %}
 </div>
 {% endblock %}

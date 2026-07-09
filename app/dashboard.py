@@ -2,9 +2,9 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
-from flask import Blueprint, current_app, flash, redirect, render_template, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func
+from sqlalchemy import case, func
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -18,15 +18,20 @@ dashboard_bp = Blueprint("dashboard", __name__)
 @dashboard_bp.route("/")
 @login_required
 def index():
-    water_points = scoped_water_points().all()
+    counts = dict(
+        scoped_water_points()
+        .with_entities(WaterPoint.current_status, func.count(WaterPoint.id))
+        .group_by(WaterPoint.current_status)
+        .all()
+    )
     status_counts = {
-        "total": len(water_points),
-        "at_risk": len([wp for wp in water_points if wp.current_status == "At Risk"]),
-        "functional": len([wp for wp in water_points if wp.current_status == "Functional"]),
-        "non_functional": len([wp for wp in water_points if wp.current_status == "Non-Functional"]),
-        "under_repair": len([wp for wp in water_points if wp.current_status == "Under Repair"]),
+        "total": sum(counts.values()),
+        "at_risk": counts.get("At Risk", 0),
+        "functional": counts.get("Functional", 0),
+        "non_functional": counts.get("Non-Functional", 0),
+        "under_repair": counts.get("Under Repair", 0),
     }
-    return render_template("dashboard/index.html", water_points=water_points, **status_counts)
+    return render_template("dashboard/index.html", water_points=scoped_water_points().all(), **status_counts)
 
 
 @dashboard_bp.route("/map")
@@ -50,6 +55,13 @@ def water_points():
 def upload_data():
     form = DataUploadForm()
     form.district.choices = available_district_choices()
+
+    if request.method == "GET" and not form.district.data:
+        from app.settings import get_setting
+
+        default_district = get_setting("default_district", "Bugesera")
+        if default_district and any(default_district == value for value, _ in form.district.choices):
+            form.district.data = default_district
 
     if form.validate_on_submit():
         upload = form.data_file.data
@@ -186,10 +198,13 @@ def load_prediction_model():
 
 
 def predict_risk(model, water_point, catchment_pressures=None):
+    from app.settings import get_setting
+
     catchment_pressure = 0.0
     if getattr(water_point, "water_source", None) and water_point.water_source.catchment:
         catchment_pressure = catchment_pressures.get(water_point.water_source.catchment, 0.0) if catchment_pressures is not None else 0.0
     features = [[water_point.year_installed or 0, water_point.population_served or 0, water_point.monthly_rainfall or 0, catchment_pressure]]
     probability = model.predict_proba(features)[0]
     risk_prob = float(probability[1] if len(probability) > 1 else probability[0])
-    return ("At Risk" if risk_prob > 0.5 else "Functional"), risk_prob
+    threshold = get_setting("risk_threshold", 0.5)
+    return ("At Risk" if risk_prob > threshold else "Functional"), risk_prob

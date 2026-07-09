@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wmic process *)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(DATABASE_URL=sqlite:///C:/Users/user/AppData/Local/Temp/claude/d--water-project/019a15a5-ea23-4f70-87c2-a444ca2514dd/scratchpad/verify_water2.db .venv/Scripts/python.exe -c ' *)",
+      "Bash(export DATABASE_URL=\"sqlite:///C:/Users/user/AppData/Local/Temp/claude/d--water-project/019a15a5-ea23-4f70-87c2-a444ca2514dd/scratchpad/verify_water2.db\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:5052/auth/login)",
+      "Bash(export DATABASE_URL=\"sqlite:///C:/Users/user/AppData/Local/Temp/claude/d--water-project/019a15a5-ea23-4f70-87c2-a444ca2514dd/scratchpad/verify_admin.db\")",
+      "Bash(.venv/Scripts/python.exe -m flask --app run.py db upgrade)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:5053/auth/login)",
+      "Bash(.venv/Scripts/python.exe \"C:/Users/user/AppData/Local/Temp/claude/d--water-project/019a15a5-ea23-4f70-87c2-a444ca2514dd/scratchpad/verify_admin_dropdown.py\")"
+    ]
+  }
+}

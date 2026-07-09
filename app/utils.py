@@ -89,9 +89,12 @@ def allowed_file(filename, allowed_extensions):
 def notify(user_id, title, message, link=None):
     """Create an in-app notification for a user. Caller is responsible for db.session.commit()."""
     from app import db
-    from app.models import Notification
+    from app.models import Notification, User
 
     if not user_id:
+        return None
+    recipient = db.session.get(User, user_id)
+    if recipient is not None and not recipient.notifications_enabled:
         return None
     notification = Notification(user_id=user_id, title=title, message=message, link=link)
     db.session.add(notification)

@@ -9,6 +9,7 @@ from datetime import datetime
 
 from flask_login import current_user
 from sqlalchemy import case, func
+from sqlalchemy.orm import joinedload
 
 from app.dashboard import scoped_water_points
 from app.models import MaintenanceTask, User, WaterPoint, WaterSource
@@ -195,7 +196,14 @@ def build_maintenance_report(filters, page=1):
     if filters["date_to"]:
         query = query.filter(MaintenanceTask.created_at <= filters["date_to"])
 
-    tasks = query.order_by(MaintenanceTask.created_at.desc()).all()
+    tasks = (
+        query.options(
+            joinedload(MaintenanceTask.water_point),
+            joinedload(MaintenanceTask.technician),
+        )
+        .order_by(MaintenanceTask.created_at.desc())
+        .all()
+    )
     rows_all = [
         {
             "water_point": t.water_point.water_point_id,

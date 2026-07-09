@@ -65,6 +65,8 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     approved_at = db.Column(db.DateTime)
+    theme_preference = db.Column(db.String(10), nullable=False, default="light")
+    notifications_enabled = db.Column(db.Boolean, nullable=False, default=True)
 
     water_points = db.relationship("WaterPoint", backref="uploaded_by", lazy=True)
     notifications = db.relationship("Notification", backref="user", lazy=True)
@@ -196,6 +198,8 @@ class AuditLog(db.Model):
     user_agent = db.Column(db.String(200))
     timestamp = db.Column(db.DateTime, default=utcnow)
 
+    user = db.relationship("User", foreign_keys=[user_id])
+
     def __repr__(self):
         return f"<AuditLog {self.action}>"
 
@@ -216,3 +220,17 @@ class ReportLog(db.Model):
 
     def __repr__(self):
         return f"<ReportLog {self.report_type} {self.export_format}>"
+
+
+class SystemSetting(db.Model):
+    __tablename__ = "system_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    value = db.Column(db.Text)
+    value_type = db.Column(db.String(20), default="string")
+    description = db.Column(db.Text)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+    def __repr__(self):
+        return f"<SystemSetting {self.key}>"

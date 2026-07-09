@@ -3,6 +3,41 @@
 {% block content %}
 <div class="content-panel">
     <h1>System Settings</h1>
-    <p class="empty-state">Settings can be extended here for thresholds, notification rules, and district lists.</p>
+    <p class="form-hint">These values are applied across the system (reports, risk classification, uploads). Changes take effect immediately.</p>
+
+    <form method="post" class="row g-3 mt-1" style="max-width: 640px;">
+        {{ form.csrf_token }}
+        <div class="col-12">
+            <label class="form-label">{{ form.app_name.label }}</label>
+            {{ form.app_name(class="form-control") }}
+            <div class="form-text">{{ settings.app_name_description if settings else '' }}</div>
+        </div>
+        <div class="col-12">
+            <label class="form-label">{{ form.admin_email.label }}</label>
+            {{ form.admin_email(class="form-control") }}
+        </div>
+        <div class="col-12">
+            <label class="form-label">{{ form.risk_threshold.label }}</label>
+            {{ form.risk_threshold(class="form-control", step="0.01", min="0", max="1") }}
+            <div class="form-text">A water point with risk probability above this is classified 'At Risk'.</div>
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                {{ form.session_cookie_secure(class="form-check-input") }}
+                <label class="form-check-label">{{ form.session_cookie_secure.label }}</label>
+            </div>
+        </div>
+        <div class="col-12">
+            <label class="form-label">{{ form.max_upload_mb.label }}</label>
+            {{ form.max_upload_mb(class="form-control") }}
+        </div>
+        <div class="col-12">
+            <label class="form-label">{{ form.default_district.label }}</label>
+            {{ form.default_district(class="form-select") }}
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">{{ form.submit.label }}</button>
+        </div>
+    </form>
 </div>
 {% endblock %}

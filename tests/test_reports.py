@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import openpyxl
 
 from app import db
-from app.models import MaintenanceTask, ReportLog, WaterPoint
+from app.models import AuditLog, MaintenanceTask, ReportLog, WaterPoint
 from app.report_queries import bucket_risk_level
 from tests.conftest import login, make_user, make_water_point
 
@@ -302,3 +302,131 @@ def test_admin_report_log_viewer_lists_entries(app, client):
     resp = client.get("/admin/report-logs")
     assert resp.status_code == 200
     assert b"Status" in resp.data
+
+
+# --- Report Activity Log: filter, sort, export -------------------------
+
+
+def _make_report_log(db, user, report_type, export_format, row_count=None, when=None, scope="Bugesera"):
+    from datetime import datetime as _dt
+
+    log = ReportLog(
+        report_type=report_type,
+        export_format=export_format,
+        generated_by_id=user.id,
+        district_scope=scope,
+        row_count=row_count,
+        generated_at=when or _dt.utcnow(),
+    )
+    db.session.add(log)
+    db.session.commit()
+    return log
+
+
+def test_report_log_filter_by_report_type(app, client):
+    with app.app_context():
+        admin = make_user(db, "admin", "Bugesera", "admin1")
+        _make_report_log(db, admin, "status", "view", row_count=4)
+        _make_report_log(db, admin, "maintenance", "view", row_count=2)
+
+    login(client, "admin1")
+    resp = client.get("/admin/report-logs?report_type=status")
+    assert resp.status_code == 200
+
+    excel = client.get("/admin/report-logs/export/excel?report_type=status")
+    wb = openpyxl.load_workbook(io.BytesIO(excel.data))
+    values = [str(c) for row in wb.active.iter_rows(values_only=True) for c in row if c is not None]
+    assert any("Status" == v for v in values)
+    assert not any("Maintenance" == v for v in values)
+
+
+def test_report_log_filter_by_export_format(app, client):
+    with app.app_context():
+        admin = make_user(db, "admin", "Bugesera", "admin1")
+        _make_report_log(db, admin, "status", "pdf", row_count=4)
+        _make_report_log(db, admin, "status", "view", row_count=4)
+        _make_report_log(db, admin, "status", "excel", row_count=4)
+
+    login(client, "admin1")
+    resp = client.get("/admin/report-logs?export_format=pdf")
+    assert resp.status_code == 200
+
+    excel = client.get("/admin/report-logs/export/excel?export_format=pdf")
+    wb = openpyxl.load_workbook(io.BytesIO(excel.data))
+    values = [str(c) for row in wb.active.iter_rows(values_only=True) for c in row if c is not None]
+    assert any("PDF" == v for v in values)
+    assert not any(v in ("VIEW", "EXCEL") for v in values)
+
+
+def test_report_log_sort_by_time_direction(app, client):
+    from datetime import datetime as _dt, timedelta
+
+    with app.app_context():
+        admin = make_user(db, "admin", "Bugesera", "admin1")
+        base = _dt.utcnow()
+        _make_report_log(db, admin, "status", "view", when=base - timedelta(days=2))
+        _make_report_log(db, admin, "status", "view", when=base - timedelta(days=1))
+        _make_report_log(db, admin, "status", "view", when=base)
+
+    login(client, "admin1")
+    import re
+
+    desc_html = client.get("/admin/report-logs?sort_by=time&sort_dir=desc").data.decode()
+    asc_html = client.get("/admin/report-logs?sort_by=time&sort_dir=asc").data.decode()
+    pattern = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}"
+
+    desc_times = re.findall(pattern, desc_html)
+    asc_times = re.findall(pattern, asc_html)
+    assert desc_times == sorted(desc_times, reverse=True)
+    assert asc_times == sorted(asc_times)
+
+
+def test_report_log_export_pdf_and_excel(app, client):
+    with app.app_context():
+        admin = make_user(db, "admin", "Bugesera", "admin1")
+        _make_report_log(db, admin, "status", "view", row_count=4)
+
+    login(client, "admin1")
+    pdf = client.get("/admin/report-logs/export/pdf")
+    assert pdf.status_code == 200
+    assert pdf.mimetype == "application/pdf"
+    assert pdf.data[:4] == b"%PDF"
+
+    excel = client.get("/admin/report-logs/export/excel")
+    assert excel.status_code == 200
+    assert excel.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+# --- Audit Log: filter, sort, export -----------------------------------
+
+
+def test_audit_log_filter_by_action(app, client):
+    with app.app_context():
+        admin = make_user(db, "admin", "Bugesera", "admin1")
+        db.session.add(AuditLog(user_id=admin.id, action="user_approved", details="approved u1"))
+        db.session.add(AuditLog(user_id=admin.id, action="task_created", details="made a task"))
+        db.session.commit()
+
+    login(client, "admin1")
+    resp = client.get("/admin/audit-logs?action=approved")
+    html = resp.data.decode()
+    assert resp.status_code == 200
+    assert "user_approved" in html
+    assert "task_created" not in html
+
+
+def test_audit_log_export_pdf_and_excel(app, client):
+    with app.app_context():
+        admin = make_user(db, "admin", "Bugesera", "admin1")
+        db.session.add(AuditLog(user_id=admin.id, action="user_approved", details="approved u1"))
+        db.session.commit()
+
+    login(client, "admin1")
+    pdf = client.get("/admin/audit-logs/export/pdf")
+    assert pdf.status_code == 200
+    assert pdf.mimetype == "application/pdf"
+    assert pdf.data[:4] == b"%PDF"
+
+    excel = client.get("/admin/audit-logs/export/excel")
+    assert excel.status_code == 200
+    assert excel.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

@@ -68,9 +68,15 @@ def predict():
     if model is None:
         return jsonify({"error": "Prediction model not found"}), 404
 
+    point_ids = (request.json or {}).get("point_ids", [])
+    points_by_id = {
+        wp.water_point_id: wp
+        for wp in WaterPoint.query.filter(WaterPoint.water_point_id.in_(point_ids)).all()
+    }
+
     results = []
-    for point_id in (request.json or {}).get("point_ids", []):
-        wp = WaterPoint.query.filter_by(water_point_id=point_id).first()
+    for point_id in point_ids:
+        wp = points_by_id.get(point_id)
         if wp and user_can_access_district(wp.district):
             prediction, probability = predict_risk(model, wp)
             results.append({"id": point_id, "prediction": prediction, "probability": probability})
