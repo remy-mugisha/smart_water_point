@@ -69,7 +69,10 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(username=form.username.data).first()
+        identifier = form.username.data.strip()
+        user = User.query.filter(
+            db.or_(User.username == identifier, User.email == identifier)
+        ).first()
         if user and bcrypt.checkpw(form.password.data.encode("utf-8"), user.password_hash.encode("utf-8")):
             if not user.is_approved:
                 flash("Your account is pending approval.", "warning")
@@ -82,7 +85,7 @@ def login():
             db.session.add(AuditLog(user_id=user.id, action="login", details=f"User {user.username} logged in"))
             db.session.commit()
             login_user(user, remember=form.remember.data)
-            flash(f"Welcome back, {user.full_name}.", "success")
+            # flash(f"Welcome back, {user.full_name}.", "success")
 
             next_page = request.args.get("next")
             if next_page and urlsplit(next_page).netloc == "" and urlsplit(next_page).scheme == "":
