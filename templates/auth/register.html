@@ -2,39 +2,78 @@
 {% block title %}Register - Smart Water Monitoring{% endblock %}
 {% block body_class %}register-page-body{% endblock %}
 {% block navbar %}{% endblock %}
-{% macro field(f, cls="form-control register-input") %}
+{% macro field(f, cls="register-input") %}
     {% set input_id = kwargs.get('id', f.id) %}
     <div class="register-field" id="{{ input_id }}-field">
-        <label for="{{ input_id }}" class="register-label">
-            {{ f.label.text }}
-            {% if f.flags.required %}<span class="required-mark">*</span>{% endif %}
-        </label>
-        {{ f(class=cls ~ (" is-invalid" if f.errors else ""), **kwargs) }}
+        <label for="{{ input_id }}" class="register-label">{{ f.label.text }}</label>
+        {{ f(class=cls ~ (" is-invalid" if f.errors else ""), placeholder=f.label.text, **kwargs) }}
         {% if f.errors %}
         <div class="invalid-feedback d-block">{{ f.errors[0] }}</div>
         {% endif %}
     </div>
 {% endmacro %}
-{% block content %}
-<div class="register-page">
-    <h1 class="register-heading">Create Your Account</h1>
-    <div class="register-card">
+{% block main_wrapper %}
+<div class="register-shell">
+    <div class="register-sidebar">
+        <div class="register-brand">
+            <i class="fa-solid fa-droplet"></i>
+            <span>Smart Water</span>
+        </div>
+        <div class="register-nav-item">Registration Here</div>
+        <div class="register-role-buttons">
+            <a class="register-role-btn{{ ' active' if form.role.data == 'district_manager' else '' }}"
+               href="{{ url_for('auth.register', role='district_manager') }}#role-field">Admin</a>
+            <a class="register-role-btn{{ ' active' if form.role.data == 'district_technician' else '' }}"
+               href="{{ url_for('auth.register', role='district_technician') }}#role-field">Technician</a>
+        </div>
+    </div>
+    <div class="register-main">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <h1 class="register-heading">Create Your Account</h1>
+        <p class="register-subtitle">Already have an account? <a href="{{ url_for('auth.login') }}">Log in.</a></p>
         <form method="post">
             {{ form.hidden_tag() }}
-            {{ field(form.username) }}
-            {{ field(form.email) }}
-            {{ field(form.full_name) }}
-            {{ field(form.phone) }}
-            {{ field(form.district, cls="form-select register-input") }}
-            {{ field(form.role, cls="form-select register-input") }}
-            {{ field(form.sector, cls="form-select register-input", id="sector-select") }}
-            {{ field(form.cell, cls="form-select register-input", id="cell-select") }}
-            {{ field(form.village, cls="form-select register-input", id="village-select") }}
-            {{ field(form.password) }}
-            {{ field(form.confirm_password) }}
-            <button class="btn register-submit w-100" type="submit">Sign Up</button>
+            <div class="register-grid single">
+                {{ field(form.username) }}
+            </div>
+            <div class="register-grid">
+                {{ field(form.full_name) }}
+                {{ field(form.phone) }}
+            </div>
+            <div class="register-grid">
+                {{ field(form.district, cls="register-input register-select") }}
+                {{ field(form.sector, cls="register-input register-select", id="sector-select") }}
+            </div>
+            <div class="register-grid">
+                {{ field(form.cell, cls="register-input register-select", id="cell-select") }}
+                {{ field(form.village, cls="register-input register-select", id="village-select") }}
+            </div>
+            <div class="register-grid single">
+                {{ field(form.role, cls="register-input register-select") }}
+                {{ field(form.email) }}
+            </div>
+            <div class="register-grid">
+                {{ field(form.password) }}
+                {{ field(form.confirm_password) }}
+            </div>
+            <div class="register-checkbox-row{{ ' is-invalid' if form.agree_terms.errors else '' }}">
+                {{ form.agree_terms(class="register-checkbox", id="agree_terms") }}
+                <label for="agree_terms">I agree to the <a href="{{ url_for('auth.privacy_policy') }}" target="_blank" rel="noopener">Privacy Policy</a></label>
+            </div>
+            {% if form.agree_terms.errors %}
+            <div class="invalid-feedback d-block register-checkbox-error">{{ form.agree_terms.errors[0] }}</div>
+            {% endif %}
+            <button class="btn register-submit w-100" type="submit">Create account</button>
         </form>
-        <p class="register-footer">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
     </div>
 </div>
 <script>

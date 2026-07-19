@@ -48,9 +48,9 @@ class RegistrationForm(FlaskForm):
     role = SelectField(
         "Role",
         choices=[
-            ("viewer", "Viewer - can view data only"),
-            ("district_technician", "Technician - can upload data and view"),
-            ("district_manager", "Manager - can manage district data"),
+            ("viewer", "Viewer"),
+            ("district_technician", "Technician"),
+            ("district_manager", "Admin"),
         ],
         validators=[DataRequired()],
     )
@@ -61,6 +61,10 @@ class RegistrationForm(FlaskForm):
     confirm_password = PasswordField(
         "Confirm Password",
         validators=[DataRequired(), EqualTo("password", message="Passwords must match")],
+    )
+    agree_terms = BooleanField(
+        "I agree to the Privacy Policy",
+        validators=[DataRequired(message="You must agree to the Privacy Policy to register.")],
     )
 
     def validate_username(self, username):
@@ -81,7 +85,7 @@ class RegistrationForm(FlaskForm):
 
 
 class LoginForm(FlaskForm):
-    username = StringField("Username or Email", validators=[DataRequired()])
+    email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("Password", validators=[DataRequired()])
     remember = BooleanField("Remember Me")
 

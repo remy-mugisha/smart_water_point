@@ -9,7 +9,7 @@ def test_csrf_blocks_post_without_token(csrf_app):
     with csrf_app.app_context():
         make_user(db, "admin", "Bugesera", "admin1")
 
-    resp = client.post("/auth/login", data={"username": "admin1", "password": "Password123!"})
+    resp = client.post("/auth/login", data={"email": "admin1@example.rw", "password": "Password123!"})
     assert resp.status_code == 400
 
 
@@ -23,7 +23,7 @@ def test_toggle_active_form_carries_csrf_token(csrf_app):
     # log in without CSRF (Flask-WTF exempts GET, and login form itself carries its own token)
     login_page = client.get("/auth/login")
     token = _extract_csrf(login_page.data)
-    client.post("/auth/login", data={"username": "admin1", "password": "Password123!", "csrf_token": token})
+    client.post("/auth/login", data={"email": "admin1@example.rw", "password": "Password123!", "csrf_token": token})
 
     users_page = client.get("/admin/users")
     token = _extract_csrf(users_page.data)

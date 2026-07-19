@@ -93,4 +93,5 @@ def make_water_point(db, water_point_id="WP-100", district="Bugesera"):
 
 
 def login(client, username, password="Password123!"):
-    return client.post("/auth/login", data={"username": username, "password": password}, follow_redirects=True)
+    email = f"{username}@example.rw"
+    return client.post("/auth/login", data={"email": email, "password": password}, follow_redirects=True)

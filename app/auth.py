@@ -19,13 +19,13 @@ def register():
         return redirect(url_for("dashboard.index"))
 
     form = RegistrationForm()
+    if request.method == "GET":
+        requested_role = request.args.get("role")
+        if requested_role in ("district_manager", "district_technician"):
+            form.role.data = requested_role
+
     if form.validate_on_submit():
-        is_first_user = User.query.count() == 0
-        # District Managers are trusted district staff, not public self-service
-        # signups, so their accounts skip the admin-approval queue and go
-        # straight to active - same as the bootstrap first-admin account.
         is_manager = form.role.data == "district_manager"
-        auto_approved = is_first_user or is_manager
 
         password_hash = bcrypt.hashpw(form.password.data.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         user = User(
@@ -37,8 +37,8 @@ def register():
             sector=form.sector.data,
             cell=form.cell.data,
             village=form.village.data,
-            role="admin" if is_first_user else form.role.data,
-            is_approved=auto_approved,
+            role="admin",
+            is_approved=True,
             password_hash=password_hash,
         )
         db.session.add(user)
@@ -47,10 +47,6 @@ def register():
             AuditLog(user_id=user.id, action="user_registered", details=f"User {user.username} registered")
         )
         db.session.commit()
-
-        if is_first_user:
-            flash("Registration successful. Your first account is an approved administrator.", "success")
-            return redirect(url_for("auth.login"))
 
         if is_manager:
             flash("Registration successful. District Manager accounts are activated automatically.", "success")
@@ -69,10 +65,8 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        identifier = form.username.data.strip()
-        user = User.query.filter(
-            db.or_(User.username == identifier, User.email == identifier)
-        ).first()
+        email = form.email.data.strip().lower()
+        user = User.query.filter(db.func.lower(User.email) == email).first()
         if user and bcrypt.checkpw(form.password.data.encode("utf-8"), user.password_hash.encode("utf-8")):
             if not user.is_approved:
                 flash("Your account is pending approval.", "warning")
@@ -110,6 +104,11 @@ def logout():
 @auth_bp.route("/pending-approval")
 def pending_approval():
     return render_template("auth/pending_approval.html")
+
+
+@auth_bp.route("/privacy-policy")
+def privacy_policy():
+    return render_template("auth/privacy_policy.html")
 
 
 @auth_bp.route("/settings")

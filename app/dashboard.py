@@ -43,9 +43,21 @@ def map_view():
 @dashboard_bp.route("/water-points")
 @login_required
 def water_points():
+    upload_form = None
+    if current_user.role in ("admin", "district_technician", "district_manager"):
+        upload_form = DataUploadForm()
+        upload_form.district.choices = available_district_choices()
+
+        from app.settings import get_setting
+
+        default_district = get_setting("default_district", "Bugesera")
+        if default_district and any(default_district == value for value, _ in upload_form.district.choices):
+            upload_form.district.data = default_district
+
     return render_template(
         "dashboard/water_points.html",
         water_points=scoped_water_points().order_by(WaterPoint.last_updated.desc()).all(),
+        upload_form=upload_form,
     )
 
 
@@ -111,7 +123,7 @@ def available_district_choices():
 
 
 def process_water_point_data(df, district, user_id):
-    required = {"water_point_id", "latitude", "longitude", "technology_type"};
+    required = {"water_point_id", "latitude", "longitude", "technology_type"}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Missing required columns: {', '.join(sorted(missing))}")

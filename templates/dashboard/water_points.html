@@ -6,11 +6,38 @@
         <h1>Water Points</h1>
         <p>Monitor status, technology, population served, and risk scores.</p>
     </div>
-    {% if current_user.role in ['admin', 'district_technician', 'district_manager'] %}
-    <a class="btn btn-primary" href="{{ url_for('dashboard.upload_data') }}"><i class="fa-solid fa-upload"></i> Upload Data</a>
+    {% if upload_form %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDataModal">
+        <i class="fa-solid fa-upload"></i> Upload Data
+    </button>
     {% endif %}
 </div>
 <div class="content-panel">
     {% include "dashboard/_water_points_table.html" %}
 </div>
+
+{% if upload_form %}
+<div class="modal fade" id="uploadDataModal" tabindex="-1" aria-labelledby="uploadDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('dashboard.upload_data') }}" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="uploadDataModalLabel">Upload Water Point Data</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {{ upload_form.hidden_tag() }}
+                    {% with form = upload_form %}
+                    {% include "dashboard/_upload_form_fields.html" %}
+                    {% endwith %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-upload"></i> Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

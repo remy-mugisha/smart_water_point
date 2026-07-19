@@ -40,13 +40,13 @@ AUDIT_LOG_SORT_COLUMNS = {
 }
 
 
-def _apply_sort(query, args, columns, default="time"):
+def _apply_sort(query, args, columns, default="time", tie_breaker=None):
     sort_by = args.get("sort_by", default) or default
     sort_dir = (args.get("sort_dir") or "desc").lower()
     column = columns.get(sort_by, columns[default])
     ordered = column.desc() if sort_dir == "desc" else column.asc()
-    # stable tie-breaker so pagination is deterministic
-    tie_breaker = ReportLog.id if columns is REPORT_LOG_SORT_COLUMNS else AuditLog.id
+    if tie_breaker is None:
+        tie_breaker = columns.get("id", column)
     return query.order_by(ordered, tie_breaker.desc())
 
 
@@ -168,7 +168,7 @@ def audit_logs():
     if filters["date_to"]:
         query = query.filter(AuditLog.timestamp <= filters["date_to"])
     query = query.options(joinedload(AuditLog.user))
-    query = _apply_sort(query, request.args, AUDIT_LOG_SORT_COLUMNS, default="time")
+    query = _apply_sort(query, request.args, AUDIT_LOG_SORT_COLUMNS, default="time", tie_breaker=AuditLog.id)
 
     logs = query.paginate(page=request.args.get("page", 1, type=int), per_page=50, error_out=False)
     user_choices = [(u.id, u.full_name) for u in User.query.order_by(User.full_name).all()]
@@ -226,7 +226,7 @@ def _build_audit_log_rows(args):
     if filters["date_to"]:
         query = query.filter(AuditLog.timestamp <= filters["date_to"])
     query = query.options(joinedload(AuditLog.user))
-    query = _apply_sort(query, args, AUDIT_LOG_SORT_COLUMNS, default="time")
+    query = _apply_sort(query, args, AUDIT_LOG_SORT_COLUMNS, default="time", tie_breaker=AuditLog.id)
 
     rows = [
         [

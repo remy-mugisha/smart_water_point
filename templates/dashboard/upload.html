@@ -5,11 +5,8 @@
     <h1>Upload Water Point Data</h1>
     <form method="post" enctype="multipart/form-data">
         {{ form.hidden_tag() }}
-        <div class="mb-3">{{ form.district.label(class="form-label") }}{{ form.district(class="form-select") }}</div>
-        <div class="mb-3">{{ form.data_file.label(class="form-label") }}{{ form.data_file(class="form-control") }}</div>
-        <div class="mb-3">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control", rows="3") }}</div>
+        {% include "dashboard/_upload_form_fields.html" %}
         <button class="btn btn-primary" type="submit"><i class="fa-solid fa-upload"></i> Upload</button>
     </form>
-    <p class="form-hint mt-3">Required columns: water_point_id, latitude, longitude, technology_type. Optional columns include sector, cell, year_installed, population_served, depth, rainfall, rainfall_month.</p>
 </div>
 {% endblock %}

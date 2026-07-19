@@ -14,7 +14,14 @@ tasks_bp = Blueprint("tasks", __name__)
 @technician_required
 def list_tasks():
     tasks = scoped_tasks().order_by(MaintenanceTask.created_at.desc()).all()
-    return render_template("tasks/list.html", tasks=tasks)
+
+    create_form = None
+    if current_user.role in ("admin", "district_manager"):
+        create_form = TaskCreateForm()
+        create_form.water_point.choices = available_water_point_choices()
+        create_form.technician.choices = [("", "Unassigned (assign later)")] + available_technician_choices()
+
+    return render_template("tasks/list.html", tasks=tasks, create_form=create_form)
 
 
 @tasks_bp.route("/create", methods=["GET", "POST"])

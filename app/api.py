@@ -57,7 +57,8 @@ def upload_api():
         return jsonify({"success": True, "processed": count})
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": str(exc)}), 500
+        app.logger.error("API upload failed: %s", exc, exc_info=True)
+        return jsonify({"error": "Failed to process file"}), 500
 
 
 @api_bp.route("/predict", methods=["POST"])

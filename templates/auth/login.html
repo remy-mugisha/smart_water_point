@@ -26,8 +26,8 @@
             <form method="post" novalidate>
                 {{ form.hidden_tag() }}
                 <div class="mb-3">
-                    {{ form.username.label(class="login-label") }}
-                    {{ form.username(class="form-control login-input", placeholder="Enter your username or email") }}
+                    {{ form.email.label(class="login-label") }}
+                    {{ form.email(class="form-control login-input", placeholder="Enter your email", type="email") }}
                 </div>
                 <div class="mb-3">
                     {{ form.password.label(class="login-label") }}

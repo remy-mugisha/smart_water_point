@@ -143,7 +143,7 @@ def build_technician_performance_report(filters, page=1):
         assigned_count = len(tasks)
         completed = [t for t in tasks if t.status in ("completed", "verified")]
         completed_count = len(completed)
-        in_progress_count = assigned_count - completed_count
+        in_progress_count = len([t for t in tasks if t.status in ("in_progress",)])
         completion_rate = round(completed_count / assigned_count * 100, 1) if assigned_count else 0.0
 
         resolution_hours = [
@@ -356,17 +356,17 @@ def build_monthly_repair_outcomes():
 
     by_month = {}
     for month, resulting_status, count in query.all():
-        bucket = by_month.setdefault(month, {"Functional": 0, "At Risk": 0})
+        bucket = by_month.setdefault(month, {"Functional": 0, "Non-Functional": 0})
         if resulting_status == "Functional":
             bucket["Functional"] += count
         else:
-            bucket["At Risk"] += count
+            bucket["Non-Functional"] += count
 
     months = sorted(by_month.keys())
     return {
         "labels": months,
         "datasets": [
             {"label": "Functional", "values": [by_month[m]["Functional"] for m in months]},
-            {"label": "At Risk", "values": [by_month[m]["At Risk"] for m in months]},
+            {"label": "Non-Functional", "values": [by_month[m]["Non-Functional"] for m in months]},
         ],
     }
