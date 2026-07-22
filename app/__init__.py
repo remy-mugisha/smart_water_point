@@ -1,4 +1,4 @@
-from flask import Flask, flash, jsonify, redirect, request, url_for
+from flask import Flask, jsonify, redirect, request, url_for
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -21,14 +21,11 @@ def create_app(config_class=Config):
     login_manager.init_app(app)
     csrf.init_app(app)
     login_manager.login_view = "auth.login"
-    login_manager.login_message = "Please log in to access this page."
-    login_manager.login_message_category = "warning"
 
     @login_manager.unauthorized_handler
     def unauthorized():
         if request.blueprint == "api":
             return jsonify({"error": "Authentication required"}), 401
-        flash(login_manager.login_message, login_manager.login_message_category)
         return redirect(url_for("auth.login", next=request.url))
 
     from app.admin import admin_bp
