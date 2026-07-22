@@ -97,7 +97,6 @@ def logout():
     db.session.add(AuditLog(user_id=current_user.id, action="logout", details=f"User {current_user.username} logged out"))
     db.session.commit()
     logout_user()
-    flash("You have been logged out successfully.", "info")
     return redirect(url_for("auth.login"))
 
 
