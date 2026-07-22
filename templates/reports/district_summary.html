@@ -8,9 +8,9 @@
         <h1>District / Sector Summary Report</h1>
         <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
     </div>
+    {{ export_buttons(url_for('reports.district_summary_report_pdf', **request.args), url_for('reports.district_summary_report_excel', **request.args)) }}
 </div>
 {{ filter_bar(filters, fields=['group_by']) }}
-{{ export_buttons(url_for('reports.district_summary_report_pdf', **request.args), url_for('reports.district_summary_report_excel', **request.args)) }}
 <div class="stats-grid">
     <div class="stat-card"><span>Groups</span><strong>{{ report.summary.total_groups }}</strong></div>
     <div class="stat-card"><span>Total Water Points</span><strong>{{ report.summary.total }}</strong></div>

@@ -9,9 +9,9 @@
         <h1>Technician Performance Report</h1>
         <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
     </div>
+    {{ export_buttons(url_for('reports.technician_performance_report_pdf', **request.args), url_for('reports.technician_performance_report_excel', **request.args)) }}
 </div>
 {{ filter_bar(filters, fields=['date_range']) }}
-{{ export_buttons(url_for('reports.technician_performance_report_pdf', **request.args), url_for('reports.technician_performance_report_excel', **request.args)) }}
 <div class="stats-grid">
     <div class="stat-card"><span>Technicians</span><strong>{{ report.summary.total_technicians }}</strong></div>
     <div class="stat-card"><span>Total Assigned</span><strong>{{ report.summary.total_assigned }}</strong></div>

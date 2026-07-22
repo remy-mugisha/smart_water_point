@@ -9,9 +9,9 @@
         <h1>Maintenance Report</h1>
         <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
     </div>
+    {{ export_buttons(url_for('reports.maintenance_report_pdf', **request.args), url_for('reports.maintenance_report_excel', **request.args)) }}
 </div>
 {{ filter_bar(filters, fields=['district', 'sector', 'technician', 'status', 'date_range'], district_choices=district_choices, technician_choices=technician_choices) }}
-{{ export_buttons(url_for('reports.maintenance_report_pdf', **request.args), url_for('reports.maintenance_report_excel', **request.args)) }}
 <div class="stats-grid">
     <div class="stat-card"><span>Total Tasks</span><strong>{{ report.summary.total }}</strong></div>
     <div class="stat-card"><span>Completed</span><strong>{{ report.summary.completed }}</strong></div>

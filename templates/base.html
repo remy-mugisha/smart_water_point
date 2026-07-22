@@ -37,9 +37,26 @@
                     <i class="fa-solid fa-bell"></i>
                     {% if unread_notification_count %}<span class="badge bg-danger">{{ unread_notification_count }}</span>{% endif %}
                 </a>
+                {% set role_meta = {
+                    'admin': {'label': 'Admin', 'icon': 'fa-user-shield'},
+                    'district_manager': {'label': 'District Manager', 'icon': 'fa-user-tie'},
+                    'district_technician': {'label': 'Technician', 'icon': 'fa-screwdriver-wrench'},
+                    'viewer': {'label': 'Viewer', 'icon': 'fa-eye'}
+                } %}
+                {% set current_role = role_meta.get(current_user.role, {'label': current_user.role, 'icon': 'fa-user'}) %}
+                {% set name_parts = current_user.full_name.split() %}
+                {% set initials = (name_parts[0][0] ~ (name_parts[-1][0] if name_parts|length > 1 else '')) | upper %}
                 <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        {{ current_user.full_name }}
+                    <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 user-menu-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if current_user.profile_image_url %}
+                        <img src="{{ current_user.profile_image_url }}" alt="" class="user-avatar-img">
+                        {% else %}
+                        <span class="user-avatar">{{ initials }}</span>
+                        {% endif %}
+                        <span class="user-menu-info">
+                            <span class="user-menu-name">{{ current_user.full_name }}</span>
+                            <span class="user-menu-role">{{ current_role.label }}</span>
+                        </span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><a class="dropdown-item" href="{{ url_for('auth.settings') }}"><i class="fa-solid fa-gear"></i> Settings</a></li>

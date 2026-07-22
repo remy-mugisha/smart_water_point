@@ -9,9 +9,9 @@
         <h1>Predictive Risk Report</h1>
         <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
     </div>
+    {{ export_buttons(url_for('reports.predictive_risk_report_pdf', **request.args), url_for('reports.predictive_risk_report_excel', **request.args)) }}
 </div>
 {{ filter_bar(filters, fields=['district', 'sector', 'technology_type', 'risk_level'], district_choices=district_choices) }}
-{{ export_buttons(url_for('reports.predictive_risk_report_pdf', **request.args), url_for('reports.predictive_risk_report_excel', **request.args)) }}
 <div class="stats-grid">
     <div class="stat-card"><span>Assessed Water Points</span><strong>{{ report.summary.total }}</strong></div>
     <div class="stat-card"><span>Low Risk</span><strong>{{ report.summary.low }}</strong></div>
