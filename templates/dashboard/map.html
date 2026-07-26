@@ -8,6 +8,13 @@
     </div>
 </div>
 <div id="map"></div>
+<div class="content-panel mt-3" style="max-width: 1180px; margin-inline: auto;">
+    <strong>Legend:</strong>
+    <span class="badge status-functional ms-2">Functional</span>
+    <span class="badge status-at-risk ms-1">At Risk</span>
+    <span class="badge status-non-functional ms-1">Non-Functional</span>
+    <span class="badge status-under-repair ms-1">Under Repair</span>
+</div>
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -19,7 +26,8 @@ const points = [
         lng: {{ wp.longitude }},
         status: {{ wp.current_status|tojson }},
         technology: {{ wp.technology_type|tojson }},
-        risk: {{ (wp.risk_probability or 0)|round(2) }}
+        risk: {{ (wp.risk_probability or 0)|round(2) }},
+        confidence: {{ (wp.prediction_confidence or "-")|tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];

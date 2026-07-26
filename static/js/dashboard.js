@@ -27,7 +27,7 @@
             weight: 2
         }).addTo(map);
         marker.bindPopup(
-            `<strong>${point.id}</strong><br>${point.technology}<br>${point.status}<br>Risk: ${Math.round(point.risk * 100)}%`
+            `<strong>${point.id}</strong><br>${point.technology}<br>${point.status}<br>Risk: ${Math.round(point.risk * 100)}%<br>AI Confidence: ${point.confidence}`
         );
         bounds.push([point.lat, point.lng]);
     });

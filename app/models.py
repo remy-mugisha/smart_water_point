@@ -91,6 +91,7 @@ class WaterPoint(db.Model):
     depth = db.Column(db.Float)
     current_status = db.Column(db.String(20), default="Functional")
     risk_probability = db.Column(db.Float, default=0.0)
+    prediction_confidence = db.Column(db.String(10))
     last_prediction_date = db.Column(db.DateTime)
     monthly_rainfall = db.Column(db.Float)
     rainfall_month = db.Column(db.String(10))

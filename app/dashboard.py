@@ -7,8 +7,9 @@ from flask_login import current_user, login_required
 from sqlalchemy import case, func
 from werkzeug.utils import secure_filename
 
-from app import db
+from app import db, ml_inference
 from app.forms import DISTRICT_CHOICES, DataUploadForm
+from app.ml_features import FEATURE_NAMES, build_feature_row
 from app.models import AuditLog, WaterPoint, WaterSource
 from app.utils import allowed_file, role_required, scoped_by_district, utcnow
 
@@ -54,11 +55,44 @@ def water_points():
         if default_district and any(default_district == value for value, _ in upload_form.district.choices):
             upload_form.district.data = default_district
 
+    points = scoped_water_points().order_by(WaterPoint.last_updated.desc()).all()
+    at_risk_or_worse = sum(1 for wp in points if wp.current_status in ("At Risk", "Non-Functional"))
+    ai_summary = {"total": len(points), "at_risk_or_worse": at_risk_or_worse} if points else None
+
     return render_template(
         "dashboard/water_points.html",
-        water_points=scoped_water_points().order_by(WaterPoint.last_updated.desc()).all(),
+        water_points=points,
+        ai_summary=ai_summary,
         upload_form=upload_form,
     )
+
+
+@dashboard_bp.route("/rerun-predictions", methods=["POST"])
+@login_required
+@role_required("admin")
+def rerun_predictions():
+    if not ml_inference.is_model_available():
+        flash("No trained model available. Run `flask train-model --data <file>` first.", "warning")
+        return redirect(url_for("dashboard.water_points"))
+
+    water_points = WaterPoint.query.all()
+    catchment_pressures = dict(
+        db.session.query(WaterSource.catchment, func.sum(WaterSource.industrial_pressure_score))
+        .filter(WaterSource.catchment.isnot(None))
+        .group_by(WaterSource.catchment)
+        .all()
+    )
+    apply_predictions(water_points, catchment_pressures)
+    db.session.add(
+        AuditLog(
+            user_id=current_user.id,
+            action="rerun_predictions",
+            details=f"Re-ran AI predictions for {len(water_points)} water points",
+        )
+    )
+    db.session.commit()
+    flash(f"Re-ran predictions for {len(water_points)} water points.", "success")
+    return redirect(url_for("dashboard.water_points"))
 
 
 @dashboard_bp.route("/upload", methods=["GET", "POST"])
@@ -128,11 +162,9 @@ def process_water_point_data(df, district, user_id):
     if missing:
         raise ValueError(f"Missing required columns: {', '.join(sorted(missing))}")
 
-    count = 0
-    model = load_prediction_model()
-
+    model_available = ml_inference.is_model_available()
     catchment_pressures = {}
-    if model is not None:
+    if model_available:
         catchment_pressures = dict(
             db.session.query(WaterSource.catchment, func.sum(WaterSource.industrial_pressure_score))
             .filter(WaterSource.catchment.isnot(None))
@@ -141,6 +173,7 @@ def process_water_point_data(df, district, user_id):
         )
 
     source_map = _build_source_map(df)
+    water_points = []
 
     for _, row in df.iterrows():
         water_point = WaterPoint.query.filter_by(water_point_id=str(row.get("water_point_id"))).first()
@@ -163,17 +196,45 @@ def process_water_point_data(df, district, user_id):
         water_point.rainfall_month = value_or_none(row.get("rainfall_month"))
         water_point.last_updated = utcnow()
         water_point.water_source_id = source_map.get(value_or_none(row.get("water_source_name")))
+        water_points.append(water_point)
 
-        if model:
-            prediction, probability = predict_risk(model, water_point, catchment_pressures)
-            water_point.current_status = prediction
-            water_point.risk_probability = probability
-            water_point.last_prediction_date = utcnow()
-
-        count += 1
+    if model_available and water_points:
+        apply_predictions(water_points, catchment_pressures)
 
     db.session.commit()
-    return count
+    return len(water_points)
+
+
+def apply_predictions(water_points, catchment_pressures=None):
+    """Run the trained model over `water_points` in one vectorized batch and
+    write predicted_status/risk_probability/prediction_confidence back onto
+    each ORM object. Callers (upload, bulk re-run) are responsible for
+    checking ml_inference.is_model_available() first and for committing.
+    """
+    catchment_pressures = catchment_pressures or {}
+    frame = pd.DataFrame(
+        [
+            {
+                "year_installed": wp.year_installed,
+                "population_served": wp.population_served,
+                "monthly_rainfall": wp.monthly_rainfall,
+                "technology_type": wp.technology_type,
+                "catchment_pressure": (
+                    catchment_pressures.get(wp.water_source.catchment, 0.0)
+                    if wp.water_source and wp.water_source.catchment
+                    else 0.0
+                ),
+            }
+            for wp in water_points
+        ]
+    )
+    predictions = ml_inference.predict_batch(frame)
+    now = utcnow()
+    for water_point, (_, prediction) in zip(water_points, predictions.iterrows()):
+        water_point.current_status = prediction["predicted_status"]
+        water_point.risk_probability = float(prediction["risk_probability"])
+        water_point.prediction_confidence = prediction["prediction_confidence"]
+        water_point.last_prediction_date = now
 
 
 def _build_source_map(df):
@@ -210,13 +271,29 @@ def load_prediction_model():
 
 
 def predict_risk(model, water_point, catchment_pressures=None):
+    """Single ad-hoc prediction (used by the /api/predict endpoint), kept
+    separate from the batch path in apply_predictions() above. Returns a
+    binary Functional/At Risk label driven by the admin-configurable
+    risk_threshold setting, rather than the three-way Functional/At Risk/
+    Non-Functional bucketing the upload flow writes to current_status.
+    """
     from app.settings import get_setting
 
     catchment_pressure = 0.0
     if getattr(water_point, "water_source", None) and water_point.water_source.catchment:
         catchment_pressure = catchment_pressures.get(water_point.water_source.catchment, 0.0) if catchment_pressures is not None else 0.0
-    features = [[water_point.year_installed or 0, water_point.population_served or 0, water_point.monthly_rainfall or 0, catchment_pressure]]
-    probability = model.predict_proba(features)[0]
+
+    metadata = ml_inference.model_metadata() or {}
+    feature_names = metadata.get("feature_names", FEATURE_NAMES)
+    features = build_feature_row(
+        year_installed=water_point.year_installed,
+        population_served=water_point.population_served,
+        monthly_rainfall=water_point.monthly_rainfall,
+        technology_type=water_point.technology_type,
+        catchment_pressure=catchment_pressure,
+        metadata=metadata,
+    )
+    probability = model.predict_proba([[features[name] for name in feature_names]])[0]
     risk_prob = float(probability[1] if len(probability) > 1 else probability[0])
     threshold = get_setting("risk_threshold", 0.5)
     return ("At Risk" if risk_prob > threshold else "Functional"), risk_prob

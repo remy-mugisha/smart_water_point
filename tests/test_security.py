@@ -58,6 +58,35 @@ def test_api_predict_blocks_viewer_role(app, client):
     assert resp.get_json() == {"error": "Permission denied"}
 
 
+def test_register_persists_selected_role_for_district_manager(app, client):
+    resp = client.post(
+        "/auth/register",
+        data={
+            "username": "managerreg",
+            "email": "managerreg@example.rw",
+            "full_name": "Manager Reg",
+            "phone": "0788123456",
+            "district": "Bugesera",
+            "sector": "Gashora",
+            "cell": "Biryogo",
+            "village": "Bidudu",
+            "role": "district_manager",
+            "password": "Password123!",
+            "confirm_password": "Password123!",
+            "agree_terms": "y",
+        },
+        follow_redirects=True,
+    )
+
+    assert resp.status_code == 200
+    with app.app_context():
+        user = db.session.query(__import__("app.models", fromlist=["User"]).User).filter_by(username="managerreg").first()
+        assert user is not None
+        assert user.role == "district_manager"
+        assert user.is_approved is True
+        assert user.is_active is True
+
+
 def _extract_csrf(html_bytes):
     html = html_bytes.decode("utf-8")
     match = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', html)

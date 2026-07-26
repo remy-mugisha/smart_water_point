@@ -12,11 +12,9 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import joinedload
 
 from app.dashboard import scoped_water_points
+from app.ml_inference import RISK_LOW_MAX, RISK_MEDIUM_MAX
 from app.models import MaintenanceTask, User, WaterPoint, WaterSource
 from app.utils import scoped_by_district
-
-RISK_LOW_MAX = 0.33
-RISK_MEDIUM_MAX = 0.66
 
 REPORT_TITLES = {
     "status": "Water Point Status Report",

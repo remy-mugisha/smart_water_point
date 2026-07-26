@@ -28,6 +28,7 @@ def register():
         is_manager = form.role.data == "district_manager"
 
         password_hash = bcrypt.hashpw(form.password.data.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        selected_role = form.role.data or "viewer"
         user = User(
             username=form.username.data,
             email=form.email.data,
@@ -37,8 +38,9 @@ def register():
             sector=form.sector.data,
             cell=form.cell.data,
             village=form.village.data,
-            role="admin",
-            is_approved=True,
+            role=selected_role,
+            is_approved=is_manager,
+            is_active=is_manager,
             password_hash=password_hash,
         )
         db.session.add(user)

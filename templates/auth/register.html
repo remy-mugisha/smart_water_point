@@ -76,8 +76,10 @@
         </form>
     </div>
 </div>
+<div id="sectors-data" data-sectors='{{ sectors | tojson | e }}' hidden></div>
 <script>
-    const SECTORS = {{ sectors | tojson }};
+    const sectorsDataElement = document.getElementById("sectors-data");
+    const SECTORS = JSON.parse(sectorsDataElement.dataset.sectors || "{}");
     const sectorSelect = document.getElementById("sector-select");
     const cellSelect = document.getElementById("cell-select");
     const villageSelect = document.getElementById("village-select");

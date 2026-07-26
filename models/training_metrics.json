@@ -1,0 +1,49 @@
+{
+  "trained_at": "2026-07-26T10:52:41",
+  "data_path": "data/raw/sample_training_data.csv",
+  "positive_label": "Non-Functional",
+  "dataset_size": 220,
+  "train_size": 176,
+  "test_size": 44,
+  "class_balance": {
+    "functional": 136,
+    "non_functional": 84
+  },
+  "accuracy": 0.7045,
+  "precision": 0.6,
+  "recall": 0.7059,
+  "f1_score": 0.6486,
+  "roc_auc": 0.7669,
+  "confusion_matrix": [
+    [
+      19,
+      8
+    ],
+    [
+      5,
+      12
+    ]
+  ],
+  "feature_names": [
+    "age",
+    "population_served",
+    "monthly_rainfall",
+    "tech_encoded",
+    "catchment_pressure",
+    "interaction_age_pop",
+    "interaction_age_rain",
+    "rainy_season_flag",
+    "population_density_category"
+  ],
+  "coefficients": {
+    "age": 0.4545,
+    "population_served": 0.0982,
+    "monthly_rainfall": -0.3045,
+    "tech_encoded": -0.1757,
+    "catchment_pressure": 0.0,
+    "interaction_age_pop": -0.0767,
+    "interaction_age_rain": -0.0726,
+    "rainy_season_flag": 0.0685,
+    "population_density_category": 0.4426
+  }
+}

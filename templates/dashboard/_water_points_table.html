@@ -8,18 +8,26 @@
             <th>Technology</th>
             <th>Status</th>
             <th>Risk</th>
+            <th>AI Confidence</th>
             <th>Population</th>
             <th>Updated</th>
         </tr>
         </thead>
         <tbody>
         {% for wp in water_points %}
-        <tr>
+        <tr class="{% if wp.current_status == 'Non-Functional' %}table-danger{% elif wp.current_status == 'At Risk' %}table-warning{% elif wp.current_status == 'Functional' and wp.prediction_confidence == 'High' %}table-success{% endif %}">
             <td>{{ wp.water_point_id }}</td>
             <td>{{ wp.district }}</td>
             <td>{{ wp.technology_type }}</td>
             <td><span class="badge status-{{ wp.current_status|lower|replace(' ', '-') }}">{{ wp.current_status }}</span></td>
             <td>{{ "%.0f"|format((wp.risk_probability or 0) * 100) }}%</td>
+            <td>
+                {% if wp.prediction_confidence %}
+                <span class="badge {% if wp.prediction_confidence == 'High' %}status-functional{% else %}status-at-risk{% endif %}">{{ wp.prediction_confidence }}</span>
+                {% else %}
+                <span class="form-hint">-</span>
+                {% endif %}
+            </td>
             <td>{{ wp.population_served or "-" }}</td>
             <td>{{ wp.last_updated.strftime("%Y-%m-%d") if wp.last_updated else "-" }}</td>
         </tr>

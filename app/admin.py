@@ -1,15 +1,20 @@
+import json
 from datetime import datetime
+from pathlib import Path
 
-from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
+from werkzeug.utils import secure_filename
 
 from app import db
-from app.forms import AdminApprovalForm, ChangeRoleForm, SystemSettingsForm
+from app.forms import AdminApprovalForm, ChangeRoleForm, SystemSettingsForm, TrainModelForm
 from app.models import AuditLog, ReportLog, User, WaterPoint
 from app.report_export import build_excel_report, build_pdf_report
 from app.settings import all_settings, ensure_defaults, set_setting
 from app.utils import admin_required, utcnow
+
+MODELS_DIR = Path("models")
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -62,6 +67,77 @@ def dashboard():
         at_risk_points=WaterPoint.query.filter_by(current_status="At Risk").count(),
         recent_logs=AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(20).all(),
     )
+
+
+@admin_bp.route("/model-performance", methods=["GET", "POST"])
+@login_required
+@admin_required
+def model_performance():
+    form = TrainModelForm()
+
+    if form.validate_on_submit():
+        upload = form.data_file.data
+        filename = secure_filename(upload.filename)
+        upload_dir = Path("data") / "raw"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        filepath = upload_dir / filename
+        upload.save(filepath)
+
+        try:
+            from app.ml_train import train_model
+
+            metrics = train_model(filepath)
+            db.session.add(
+                AuditLog(
+                    user_id=current_user.id,
+                    action="model_retrained",
+                    details=f"Retrained model on {filename}: accuracy={metrics['accuracy']}, f1={metrics['f1_score']}",
+                )
+            )
+            db.session.commit()
+            flash(f"Model retrained successfully — accuracy {metrics['accuracy'] * 100:.1f}%.", "success")
+        except Exception as exc:
+            current_app.logger.error("Model training failed: %s", exc, exc_info=True)
+            flash(f"Training failed: {exc}", "danger")
+        return redirect(url_for("admin.model_performance"))
+
+    metrics = None
+    metrics_path = MODELS_DIR / "training_metrics.json"
+    if metrics_path.exists():
+        with open(metrics_path, encoding="utf-8") as fh:
+            metrics = json.load(fh)
+
+    return render_template(
+        "admin/model_performance.html",
+        form=form,
+        metrics=metrics,
+        model_available=(MODELS_DIR / "water_point_model.pkl").exists(),
+    )
+
+
+@admin_bp.route("/model-performance/download/model")
+@login_required
+@admin_required
+def download_model():
+    path = (MODELS_DIR / "water_point_model.pkl").resolve()
+    if not path.exists():
+        flash("No trained model available yet.", "warning")
+        return redirect(url_for("admin.model_performance"))
+    # send_file resolves relative paths against the Flask app's root_path
+    # (app/), not the process cwd where models/ actually lives, so this must
+    # be absolute.
+    return send_file(path, as_attachment=True, download_name="water_point_model.pkl")
+
+
+@admin_bp.route("/model-performance/download/metrics")
+@login_required
+@admin_required
+def download_metrics():
+    path = (MODELS_DIR / "training_metrics.json").resolve()
+    if not path.exists():
+        flash("No training metrics available yet.", "warning")
+        return redirect(url_for("admin.model_performance"))
+    return send_file(path, as_attachment=True, download_name="training_metrics.json", mimetype="application/json")
 
 
 @admin_bp.route("/users")

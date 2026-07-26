@@ -6,12 +6,30 @@
         <h1>Water Points</h1>
         <p>Monitor status, technology, population served, and risk scores.</p>
     </div>
-    {% if upload_form %}
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDataModal">
-        <i class="fa-solid fa-upload"></i> Upload Data
-    </button>
-    {% endif %}
+    <div class="d-flex gap-2">
+        {% if current_user.role == 'admin' %}
+        <form method="post" action="{{ url_for('dashboard.rerun_predictions') }}" id="rerun-predictions-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary" id="rerun-predictions-btn">
+                <span id="rerun-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                <i class="fa-solid fa-arrows-rotate"></i> Re-run Predictions
+            </button>
+        </form>
+        {% endif %}
+        {% if upload_form %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDataModal">
+            <i class="fa-solid fa-upload"></i> Upload Data
+        </button>
+        {% endif %}
+    </div>
 </div>
+
+{% if ai_summary is defined and ai_summary %}
+<div class="content-panel mb-3">
+    <i class="fa-solid fa-robot"></i> AI predicts <strong>{{ ai_summary.at_risk_or_worse }}</strong> of {{ ai_summary.total }} monitored water points in this view are At Risk or Non-Functional.
+</div>
+{% endif %}
+
 <div class="content-panel">
     {% include "dashboard/_water_points_table.html" %}
 </div>
@@ -40,4 +58,14 @@
     </div>
 </div>
 {% endif %}
+
+<script>
+const rerunForm = document.getElementById("rerun-predictions-form");
+if (rerunForm) {
+    rerunForm.addEventListener("submit", function () {
+        document.getElementById("rerun-spinner").classList.remove("d-none");
+        document.getElementById("rerun-predictions-btn").setAttribute("disabled", "disabled");
+    });
+}
+</script>
 {% endblock %}

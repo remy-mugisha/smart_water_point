@@ -121,6 +121,13 @@ class DataUploadForm(FlaskForm):
     notes = TextAreaField("Notes about this data")
 
 
+class TrainModelForm(FlaskForm):
+    data_file = FileField(
+        "Labeled Training Data (CSV or Excel)",
+        validators=[FileRequired(), FileAllowed(["csv", "xlsx"], "CSV and Excel files only.")],
+    )
+
+
 class UserProfileForm(FlaskForm):
     full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
     phone = StringField("Phone Number", validators=[Optional(), Length(max=20)])
