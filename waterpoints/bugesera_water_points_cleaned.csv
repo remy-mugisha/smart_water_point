@@ -1,0 +1,36 @@
+water_point_id,district,sector,latitude,longitude,year_installed,population_served,current_status,monthly_rainfall,technology_type,age_years
+6G9GM382+MQG,Bugesera,Ruhuha,-2.333309,30.051953,2019.0,1363,Non-Functional,,Protected Spring,7.0
+6G9GQ6CJ+MMV,Bugesera,Gashora,-2.228252,30.231672,2019.0,1972,Non-Functional,,Piped Kiosk,7.0
+6G9FPX4V+WWQ,Bugesera,Nyarugenge,-2.292667,29.99485,2012.0,2099,Non-Functional,,Borehole,14.0
+6G9GJ3W7+74F,Bugesera,Ngeruka,-2.354304000000015,30.062799999999992,2020.0,2741,Non-Functional,,Handpump,6.0
+6G9GJ7QQ+CJJ,Bugesera,Rweru,-2.361417,30.289017,2016.0,834,Non-Functional,,Handpump,10.0
+6G9GJ7QQ+HW8,Bugesera,Rweru,-2.3611,30.289833,2016.0,862,Non-Functional,,Handpump,10.0
+6G9GM2J8+CRJ,Bugesera,Nyarugenge,-2.318901,30.017003,2012.0,923,Non-Functional,,Borehole,14.0
+6G9GP22W+XJ8,Bugesera,Ruhuha,-2.297579,30.046577,2020.0,5623,Non-Functional,,Borehole,6.0
+6G9GP735+6G7,Bugesera,Rweru,-2.29696,30.2588,2019.0,5004,Non-Functional,,Borehole,7.0
+6G9GR37W+R9R,Bugesera,Nyamata,-2.1853920000000144,30.095887999999977,2021.0,1516,Non-Functional,,Other,5.0
+6G9GR3QF+Q5X,Bugesera,Nyamata,-2.160517,30.072983,2017.0,2928,Non-Functional,,Borehole,9.0
+6G9GR4R2+4VR,Bugesera,Nyamata,-2.159626000000016,30.102150999999985,2021.0,2854,Non-Functional,,Handpump,5.0
+6G9GR52X+GJG,Bugesera,Rilima,-2.198694,30.199084,2019.0,4859,Non-Functional,,Protected Spring,7.0
+6G9GR624+56J,Bugesera,Rilima,-2.199539,30.205523,2019.0,3970,Non-Functional,,Handpump,7.0
+6G9GR6RJ+5HX,Bugesera,Rilima,-2.159523000000015,30.231496999999997,2020.0,2545,Non-Functional,,Handpump,6.0
+6G9GV3R8+4WF,Bugesera,Ntarama,-2.109683,30.067292,2019.0,2563,Non-Functional,,Handpump,7.0
+6G9GV3XM+C38,Bugesera,Ntarama,-2.10147,30.0827,2018.0,1055,Non-Functional,,Borehole,8.0
+6G9GV5XQ+FP5,Bugesera,Juru,-2.101375,30.189358,2019.0,2606,Non-Functional,,Handpump,7.0
+6G9GV63V+PPG,Bugesera,Juru,-2.145696,30.244337,2012.0,1605,Non-Functional,,Borehole,14.0
+6G9GV67M+QX8,Bugesera,Juru,-2.135597,30.23495,2012.0,1514,Non-Functional,,Borehole,14.0
+6G9GV7V2+4G5,Bugesera,Juru,-2.107234,30.251365,2012.0,225,Non-Functional,,Borehole,14.0
+6G9GW3CR+JRQ,Bugesera,Ntarama,-2.078421000000014,30.092109,2021.0,2684,Non-Functional,,Other,5.0
+6G9GW5QF+6J2,Bugesera,Juru,-2.062,30.173879,2014.0,1377,Non-Functional,,Handpump,12.0
+6G9GW64V+RJ2,Bugesera,Juru,-2.093,30.244,2014.0,291,Non-Functional,,Handpump,12.0
+6G9GW6C6+525,Bugesera,Juru,-2.079611,30.210109,2013.0,964,Non-Functional,,Handpump,13.0
+6G9GM374+RJF,Bugesera,Ruhuha,-2.33544,30.056553,2012.0,969,Non-Functional,,Borehole,14.0
+6G9GW683+5R2,Bugesera,Juru,-2.084608,30.20453,2012.0,1218,Non-Functional,,Borehole,14.0
+6G9GR29Q+HR8,Bugesera,Musenyi,-2.181077000000013,30.039588999999992,2020.0,1844,Non-Functional,,Handpump,6.0
+6G9GR2V5+M8Q,Bugesera,Musenyi,-2.155792999999999,30.00837000000001,2020.0,2200,Non-Functional,,Handpump,6.0
+6G9GR482+8X3,Bugesera,Nyamata,-2.184233333,30.10241667,2014.0,2764,Non-Functional,,Handpump,12.0
+6G9GW5JP+CC2,Bugesera,Juru,-2.069,30.186,2014.0,866,Non-Functional,,Handpump,12.0
+6G9GX525+3C5,Bugesera,Mwogo,-2.04987,30.158613,2019.0,3533,Non-Functional,,Handpump,7.0
+6G9GM4CC+XWC,Bugesera,Ngeruka,-2.327559,30.122268,2020.0,1370,Non-Functional,,Borehole,6.0
+6G9GQ3VC+V52,Bugesera,Musenyi,-2.205361,30.070403,2020.0,2886,Non-Functional,,Handpump,6.0
+6G9GJ4GJ+M3J,Bugesera,Kamabuye,-2.37328,30.13014,2020.0,3100,Non-Functional,,Borehole,6.0

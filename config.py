@@ -1,4 +1,4 @@
-import os
+﻿import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -22,3 +22,27 @@ class Config:
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     APP_NAME = "Smart Water Point Monitoring System"
     ADMIN_EMAIL = "admin@smartwater.rw"
+
+    # Flask-Mail / SMTP
+    MAIL_SERVER = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    MAIL_PORT = int(os.environ.get("SMTP_PORT", 587))
+    MAIL_USE_TLS = os.environ.get("SMTP_USE_TLS", "true").lower() == "true"
+    MAIL_USERNAME = os.environ.get("SMTP_USER")
+    MAIL_PASSWORD = os.environ.get("SMTP_PASS")
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_FROM", "noreply@smartwater.rw")
+
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+    SESSION_COOKIE_SECURE = False
+
+
+class TestingConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SESSION_COOKIE_SECURE = False
+    WTF_CSRF_ENABLED = False
+
+
+class ProductionConfig(Config):
+    SESSION_COOKIE_SECURE = True

@@ -1,0 +1,57 @@
+BUGESERA DISTRICT WATER POINT DATA -- CLEANING SUMMARY
+============================================================
+Source file: wpdx_enhanced.csv (WPDx / HDX export)
+Total Bugesera water points (with valid coordinates): 35
+
+Status breakdown (current_status):
+current_status
+Non-Functional    35
+
+Technology type breakdown (mapped):
+technology_type
+Handpump            17
+Borehole            13
+Protected Spring     2
+Other                2
+Piped Kiosk          1
+
+Sector breakdown:
+sector
+Juru          9
+Nyamata       4
+Ruhuha        3
+Rweru         3
+Rilima        3
+Ntarama       3
+Musenyi       3
+Nyarugenge    2
+Ngeruka       2
+Gashora       1
+Mwogo         1
+Kamabuye      1
+
+Numeric summary statistics:
+        latitude  longitude  year_installed  population_served  age_years
+count  35.000000  35.000000       35.000000               35.0  35.000000
+mean   -2.196803  30.143389     2017.000000        2163.628571   9.000000
+std     0.103473   0.087377        3.351909        1311.600573   3.351909
+min    -2.373280  29.994850     2012.000000              225.0   5.000000
+25%    -2.297269  30.068847     2014.000000             1136.5   6.000000
+50%    -2.181077  30.130140     2019.000000             1972.0   7.000000
+75%    -2.104352  30.220803     2020.000000             2809.0  12.000000
+max    -2.049870  30.289833     2021.000000             5623.0  14.000000
+
+DATA QUALITY WARNING
+------------------------------------------------------------
+All 35 point-level Bugesera records in wpdx_enhanced.csv
+are labeled 'Non-Functional', while the separate grid-level file
+adm_analysis.csv sums to 136 functional / 0
+non-functional water points for Bugesera. The two HDX source files
+disagree on functional status for this district. Recommend flagging
+this explicitly as a data limitation, and NOT relying solely on
+wpdx_enhanced.csv's status labels as ground truth for model training
+without further verification (e.g. against MININFRA records).
+
+Note: 'monthly_rainfall' is left blank in the cleaned CSV -- per the
+project design this is populated later via a separate CHIRPS merge
+step, not derived from WPDx.

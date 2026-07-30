@@ -1,4 +1,4 @@
-from flask_wtf import FlaskForm
+﻿from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
 from wtforms import (
     BooleanField,
@@ -39,8 +39,6 @@ class RegistrationForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     full_name = StringField("Full Name", validators=[DataRequired(), Length(min=2, max=150)])
     phone = StringField("Phone Number", validators=[Optional(), Length(max=20)])
-    # This project's case study is Bugesera District only, so the address is
-    # scoped to it rather than offering all of Rwanda's districts.
     district = SelectField("District", choices=[(BUGESERA_DISTRICT, BUGESERA_DISTRICT)], validators=[DataRequired()])
     sector = SelectField("Sector", choices=BUGESERA_SECTOR_CHOICES, validators=[DataRequired()])
     cell = SelectField("Cell", choices=all_cell_choices(), validators=[DataRequired()])
@@ -156,6 +154,39 @@ class ChangePasswordForm(FlaskForm):
 class PreferencesForm(FlaskForm):
     theme = SelectField("Theme", choices=[("light", "Light"), ("dark", "Dark")], validators=[DataRequired()])
     notifications_enabled = BooleanField("Enable in-app notifications")
+
+
+class CreateTechnicianForm(FlaskForm):
+    first_name = StringField("First Name", validators=[DataRequired(), Length(min=1, max=75)])
+    last_name = StringField("Last Name", validators=[DataRequired(), Length(min=1, max=75)])
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    phone = StringField("Phone Number", validators=[Optional(), Length(max=20)])
+    district = SelectField("District", choices=DISTRICT_CHOICES, validators=[DataRequired()])
+    sector = StringField("Sector", validators=[Optional(), Length(max=100)])
+    cell = StringField("Cell", validators=[Optional(), Length(max=100)])
+    village = StringField("Village", validators=[Optional(), Length(max=100)])
+
+    def validate_email(self, email):
+        if User.query.filter_by(email=email.data).first():
+            raise ValidationError("Email already registered. Please use another.")
+
+
+class SetPasswordForm(FlaskForm):
+    new_password = PasswordField(
+        "New Password",
+        validators=[
+            DataRequired(),
+            Length(min=8, max=72, message="Password must be 8-72 characters"),
+            Regexp(
+                r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)",
+                message="Password must include an uppercase letter, a lowercase letter, and a digit",
+            ),
+        ],
+    )
+    confirm_new_password = PasswordField(
+        "Confirm New Password",
+        validators=[DataRequired(), EqualTo("new_password", message="Passwords must match")],
+    )
 
 
 class TaskCreateForm(FlaskForm):

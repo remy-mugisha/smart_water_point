@@ -38,7 +38,8 @@ def index():
 @dashboard_bp.route("/map")
 @login_required
 def map_view():
-    return render_template("dashboard/map.html", water_points=scoped_water_points().all())
+    points = WaterPoint.query.filter_by(district="Bugesera").all()
+    return render_template("dashboard/map.html", water_points=points)
 
 
 @dashboard_bp.route("/water-points")
@@ -65,6 +66,62 @@ def water_points():
         ai_summary=ai_summary,
         upload_form=upload_form,
     )
+
+
+@dashboard_bp.route("/predict", methods=["GET", "POST"])
+@login_required
+def predict():
+    """Simple predict page: pick a water point from a dropdown, get its risk
+    prediction instantly. No CSV upload required."""
+    from app.ml_inference import is_model_available, predict_single
+    from app.settings import get_setting
+    from sqlalchemy import func
+
+    points = scoped_water_points().order_by(WaterPoint.water_point_id).all()
+    catchment_pressures = dict(
+        db.session.query(WaterSource.catchment, func.sum(WaterSource.industrial_pressure_score))
+        .filter(WaterSource.catchment.isnot(None))
+        .group_by(WaterSource.catchment)
+        .all()
+    )
+
+    result = None
+    if request.method == "POST":
+        point_id = request.form.get("water_point_id")
+        selected = db.session.get(WaterPoint, int(point_id)) if point_id else None
+        if selected is None:
+            flash("Please select a valid water point.", "danger")
+            return redirect(url_for("dashboard.predict"))
+
+        if not is_model_available():
+            flash("No trained model available. Run `flask train-model --data <file>` first.", "warning")
+            return redirect(url_for("dashboard.predict"))
+
+        catchment_pressure = 0.0
+        if selected.water_source and selected.water_source.catchment:
+            catchment_pressure = catchment_pressures.get(selected.water_source.catchment, 0.0)
+
+        prediction = predict_single(selected, catchment_pressure=catchment_pressure)
+        if prediction is None:
+            flash("Prediction failed. Check server logs for details.", "danger")
+            return redirect(url_for("dashboard.predict"))
+
+        selected.risk_probability = prediction.probability
+        selected.current_status = prediction.status
+        selected.prediction_confidence = prediction.confidence
+        selected.last_prediction_date = utcnow()
+        db.session.commit()
+
+        threshold = get_setting("risk_threshold", 0.5)
+        result = {
+            "water_point": selected,
+            "status": prediction.status,
+            "probability": round(prediction.probability * 100, 1),
+            "confidence": prediction.confidence,
+            "threshold": threshold,
+        }
+
+    return render_template("dashboard/predict.html", water_points=points, result=result)
 
 
 @dashboard_bp.route("/rerun-predictions", methods=["POST"])

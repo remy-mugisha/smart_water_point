@@ -1,15 +1,17 @@
-from flask import Flask, jsonify, redirect, request, url_for
+﻿from flask import Flask, jsonify, redirect, request, url_for
 from flask_login import LoginManager
+from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
 
-from config import Config
+from config import DevelopmentConfig as Config
 
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 csrf = CSRFProtect()
+mail = Mail()
 
 
 def create_app(config_class=Config):
@@ -20,6 +22,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    mail.init_app(app)
     login_manager.login_view = "auth.login"
 
     @login_manager.unauthorized_handler
@@ -51,15 +54,10 @@ def create_app(config_class=Config):
         try:
             apply_settings_to_config()
         except Exception:
-            # settings table may not exist yet on a fresh DB; fall back to config.py
             pass
 
     @app.after_request
     def _prevent_page_caching(response):
-        # Without this, the browser's back/forward cache can redisplay an
-        # authenticated page (e.g. the dashboard) after logout without a
-        # fresh request ever reaching @login_required, letting a shared
-        # device fall back into a previous user's session via the back button.
         if request.endpoint != "static":
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"

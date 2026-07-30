@@ -1,6 +1,6 @@
 {
-  "trained_at": "2026-07-26T10:52:41",
-  "data_path": "data/raw/sample_training_data.csv",
+  "trained_at": "2026-07-30T19:51:29",
+  "data_path": "data\\raw\\sample_training_data.csv",
   "positive_label": "Non-Functional",
   "dataset_size": 220,
   "train_size": 176,

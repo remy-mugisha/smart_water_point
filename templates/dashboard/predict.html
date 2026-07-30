@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Predict Risk{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Predict Water Point Risk</h1>
+        <p>Select a water point to instantly predict its failure risk using the trained AI model.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-5">
+        <div class="content-panel">
+            <form method="post" action="{{ url_for('dashboard.predict') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3">
+                    <label for="water_point_id" class="form-label fw-semibold">Water Point</label>
+                    <select name="water_point_id" id="water_point_id" class="form-select" required>
+                        <option value="">-- Select a water point --</option>
+                        {% for wp in water_points %}
+                        <option value="{{ wp.id }}" {% if result and result.water_point.id == wp.id %}selected{% endif %}>
+                            {{ wp.water_point_id }} — {{ wp.district }} ({{ wp.technology_type }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fa-solid fa-microchip"></i> Predict Risk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        {% if result is none %}
+        <div class="content-panel text-center text-muted py-5">
+            <i class="fa-solid fa-hand-pointer" style="font-size: 3rem;"></i>
+            <p class="mt-3 mb-0">Select a water point and click <strong>Predict Risk</strong> to see the result here.</p>
+        </div>
+        {% else %}
+        {% set wp = result.water_point %}
+        {% set is_risk = result.status in ('At Risk', 'Non-Functional') %}
+        <div class="content-panel">
+            <h2 class="mb-3">{{ wp.water_point_id }}</h2>
+            <table class="table table-sm table-borderless mb-3">
+                <tr><td class="text-secondary">District</td><td class="fw-semibold">{{ wp.district }}</td></tr>
+                {% if wp.sector and not wp.sector.startswith('Sector-') %}
+                <tr><td class="text-secondary">Sector</td><td class="fw-semibold">{{ wp.sector }}</td></tr>
+                {% endif %}
+                {% if wp.cell %}
+                <tr><td class="text-secondary">Cell</td><td class="fw-semibold">{{ wp.cell }}</td></tr>
+                {% endif %}
+                <tr><td class="text-secondary">Technology</td><td class="fw-semibold">{{ wp.technology_type }}</td></tr>
+                <tr><td class="text-secondary">Year Installed</td><td class="fw-semibold">{{ wp.year_installed if wp.year_installed else '—' }}</td></tr>
+                <tr><td class="text-secondary">Population Served</td><td class="fw-semibold">{{ wp.population_served if wp.population_served else '—' }}</td></tr>
+                <tr><td class="text-secondary">Monthly Rainfall</td><td class="fw-semibold">{{ wp.monthly_rainfall if wp.monthly_rainfall else '—' }} mm</td></tr>
+            </table>
+
+            <hr>
+
+            <div class="text-center prediction-result">
+                {% set status_icon = 'fa-circle-check text-success' if result.status == 'Functional' else 'fa-circle-exclamation text-warning' if result.status == 'At Risk' else 'fa-circle-xmark text-danger' %}
+                {% set status_bg = 'bg-success-subtle border-success' if result.status == 'Functional' else 'bg-warning-subtle border-warning' if result.status == 'At Risk' else 'bg-danger-subtle border-danger' %}
+
+                <div class="p-3 rounded-3 {{ status_bg }} border">
+                    <i class="fa-solid {{ status_icon }}" style="font-size: 2.5rem;"></i>
+                    <div class="display-6 fw-bold mt-2">{{ result.status }}</div>
+                </div>
+
+                <div class="row mt-4 g-3">
+                    <div class="col-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="small text-secondary">Risk Probability</div>
+                            <div class="h4 mb-0 {% if result.probability >= result.threshold * 100 %}text-danger{% else %}text-success{% endif %}">
+                                {{ result.probability }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="small text-secondary">Confidence</div>
+                            <div class="h4 mb-0 {% if result.confidence == 'High' %}text-success{% else %}text-warning{% endif %}">
+                                {{ result.confidence }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="border rounded-3 p-3">
+                            <div class="small text-secondary">Threshold</div>
+                            <div class="h4 mb-0 text-muted">{{ (result.threshold * 100)|int }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

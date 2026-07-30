@@ -1,4 +1,4 @@
-import json
+﻿import json
 from datetime import datetime
 from pathlib import Path
 
@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.forms import AdminApprovalForm, ChangeRoleForm, SystemSettingsForm, TrainModelForm
+from app.forms import AdminApprovalForm, ChangeRoleForm, CreateTechnicianForm, SystemSettingsForm, TrainModelForm
 from app.models import AuditLog, ReportLog, User, WaterPoint
 from app.report_export import build_excel_report, build_pdf_report
 from app.settings import all_settings, ensure_defaults, set_setting
@@ -95,7 +95,7 @@ def model_performance():
                 )
             )
             db.session.commit()
-            flash(f"Model retrained successfully — accuracy {metrics['accuracy'] * 100:.1f}%.", "success")
+            flash(f"Model retrained successfully - accuracy {metrics['accuracy'] * 100:.1f}%.", "success")
         except Exception as exc:
             current_app.logger.error("Model training failed: %s", exc, exc_info=True)
             flash(f"Training failed: {exc}", "danger")
@@ -123,9 +123,6 @@ def download_model():
     if not path.exists():
         flash("No trained model available yet.", "warning")
         return redirect(url_for("admin.model_performance"))
-    # send_file resolves relative paths against the Flask app's root_path
-    # (app/), not the process cwd where models/ actually lives, so this must
-    # be absolute.
     return send_file(path, as_attachment=True, download_name="water_point_model.pkl")
 
 
@@ -221,6 +218,66 @@ def toggle_user_active(user_id):
     db.session.commit()
     flash(f"User {user.username} has been {status}.", "success")
     return redirect(url_for("admin.users"))
+
+
+@admin_bp.route("/technicians")
+@login_required
+@admin_required
+def technicians():
+    techs = User.query.filter_by(role="district_technician").order_by(User.created_at.desc()).all()
+    return render_template("admin/technicians.html", technicians=techs)
+
+
+@admin_bp.route("/technicians/create", methods=["GET", "POST"])
+@login_required
+@admin_required
+def create_technician():
+    form = CreateTechnicianForm()
+    if form.validate_on_submit():
+        from app.services.technician_service import create_technician
+
+        data = {
+            "first_name": form.first_name.data,
+            "last_name": form.last_name.data,
+            "email": form.email.data,
+            "phone": form.phone.data,
+            "district": form.district.data,
+            "sector": form.sector.data,
+            "cell": form.cell.data,
+            "village": form.village.data,
+        }
+        user, temp_password, email_error = create_technician(data, current_user)
+
+        if user is None:
+            flash(temp_password, "danger")
+            return render_template("admin/create_technician.html", form=form)
+
+        if email_error:
+            flash(
+                f"Account created for {user.full_name}. However, the welcome email could not be delivered: {email_error}. "
+                f"You can resend credentials from the technicians list.",
+                "warning",
+            )
+        else:
+            flash(f"Technician {user.full_name} created successfully. Credentials have been sent to {user.email}.", "success")
+
+        return redirect(url_for("admin.technicians"))
+
+    return render_template("admin/create_technician.html", form=form)
+
+
+@admin_bp.route("/technicians/<int:user_id>/resend-credentials", methods=["POST"])
+@login_required
+@admin_required
+def resend_credentials(user_id):
+    from app.services.technician_service import resend_credentials
+
+    user, error = resend_credentials(user_id, current_user)
+    if error:
+        flash(error, "danger")
+    else:
+        flash(f"Credentials resent to {user.email}.", "success")
+    return redirect(url_for("admin.technicians"))
 
 
 @admin_bp.route("/audit-logs")

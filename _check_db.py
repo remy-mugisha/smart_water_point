@@ -1,0 +1,20 @@
+import sqlite3
+conn = sqlite3.connect('D:\\water_project\\instance\\smart_water.db')
+cur = conn.cursor()
+cur.execute('SELECT COUNT(*) FROM water_points')
+print(f'Total water points: {cur.fetchone()[0]}')
+cur.execute('SELECT DISTINCT district FROM water_points')
+print(f'Districts: {[r[0] for r in cur.fetchall()]}')
+cur.execute('SELECT DISTINCT sector FROM water_points ORDER BY sector')
+sectors = [r[0] for r in cur.fetchall()]
+print(f'Sectors: {sectors}')
+cur.execute("SELECT COUNT(*) FROM water_points WHERE sector IS NULL OR sector = ''")
+print(f'Null/empty sectors: {cur.fetchone()[0]}')
+cur.execute("SELECT COUNT(*) FROM water_points WHERE sector LIKE 'Sector-%'")
+print(f'Placeholder sectors (Sector-N): {cur.fetchone()[0]}')
+cur.execute("SELECT COUNT(*) FROM water_points WHERE cell IS NULL OR cell = ''")
+print(f'Null/empty cells: {cur.fetchone()[0]}')
+cur.execute("SELECT water_point_id, district, sector, cell FROM water_points WHERE sector LIKE 'Sector-%' LIMIT 10")
+for row in cur.fetchall():
+    print(f'  {row}')
+conn.close()

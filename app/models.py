@@ -1,4 +1,4 @@
-from enum import Enum
+﻿from enum import Enum
 
 from flask_login import UserMixin
 
@@ -65,6 +65,8 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
     approved_at = db.Column(db.DateTime)
+    must_change_password = db.Column(db.Boolean, default=False)
+    profile_image_url = db.Column(db.String(500))
     theme_preference = db.Column(db.String(10), nullable=False, default="light")
     notifications_enabled = db.Column(db.Boolean, nullable=False, default=True)
 

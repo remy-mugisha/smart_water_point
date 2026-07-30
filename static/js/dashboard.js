@@ -4,7 +4,7 @@
         return;
     }
 
-    const map = L.map("map").setView([-1.95, 30.06], 8);
+    const map = L.map("map").setView([-2.20, 30.10], 10);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors"

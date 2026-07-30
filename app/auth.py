@@ -1,11 +1,11 @@
-from urllib.parse import urlsplit
+﻿from urllib.parse import urlsplit
 
 import bcrypt
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db
-from app.forms import ChangePasswordForm, LoginForm, PreferencesForm, RegistrationForm, UserProfileForm
+from app.forms import ChangePasswordForm, LoginForm, PreferencesForm, RegistrationForm, SetPasswordForm, UserProfileForm
 from app.models import AuditLog, User
 from app.rwanda_geo import BUGESERA_SECTORS
 from app.utils import utcnow
@@ -81,7 +81,10 @@ def login():
             db.session.add(AuditLog(user_id=user.id, action="login", details=f"User {user.username} logged in"))
             db.session.commit()
             login_user(user, remember=form.remember.data)
-            # flash(f"Welcome back, {user.full_name}.", "success")
+
+            if user.must_change_password:
+                flash("You must change your temporary password before continuing.", "warning")
+                return redirect(url_for("auth.change_temp_password"))
 
             next_page = request.args.get("next")
             if next_page and urlsplit(next_page).netloc == "" and urlsplit(next_page).scheme == "":
@@ -91,6 +94,32 @@ def login():
         flash("Invalid username or password.", "danger")
 
     return render_template("auth/login.html", form=form)
+
+
+@auth_bp.route("/change-temp-password", methods=["GET", "POST"])
+@login_required
+def change_temp_password():
+    if not current_user.must_change_password:
+        return redirect(url_for("dashboard.index"))
+
+    form = SetPasswordForm()
+    if form.validate_on_submit():
+        current_user.password_hash = bcrypt.hashpw(
+            form.new_password.data.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+        current_user.must_change_password = False
+        db.session.add(
+            AuditLog(
+                user_id=current_user.id,
+                action="temp_password_changed",
+                details=f"User {current_user.username} changed their temporary password",
+            )
+        )
+        db.session.commit()
+        flash("Password changed successfully. Welcome to the system!", "success")
+        return redirect(url_for("dashboard.index"))
+
+    return render_template("auth/change_temp_password.html", form=form)
 
 
 @auth_bp.route("/logout")

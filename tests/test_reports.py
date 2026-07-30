@@ -1,11 +1,12 @@
 import io
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import openpyxl
 
 from app import db
 from app.models import AuditLog, MaintenanceTask, ReportLog, WaterPoint
 from app.report_queries import bucket_risk_level
+from app.utils import utcnow
 from tests.conftest import login, make_user, make_water_point
 
 
@@ -13,17 +14,17 @@ def _seed_basic_fleet(district="Bugesera"):
     wp_functional = make_water_point(db, water_point_id="WP-F1", district=district)
     wp_functional.current_status = "Functional"
     wp_functional.risk_probability = 0.1
-    wp_functional.last_prediction_date = datetime.utcnow()
+    wp_functional.last_prediction_date = utcnow()
 
     wp_at_risk = make_water_point(db, water_point_id="WP-R1", district=district)
     wp_at_risk.current_status = "At Risk"
     wp_at_risk.risk_probability = 0.5
-    wp_at_risk.last_prediction_date = datetime.utcnow()
+    wp_at_risk.last_prediction_date = utcnow()
 
     wp_repair = make_water_point(db, water_point_id="WP-U1", district=district)
     wp_repair.current_status = "Under Repair"
     wp_repair.risk_probability = 0.8
-    wp_repair.last_prediction_date = datetime.utcnow()
+    wp_repair.last_prediction_date = utcnow()
 
     wp_unassessed = make_water_point(db, water_point_id="WP-N1", district=district)
     wp_unassessed.current_status = "Non-Functional"
@@ -35,7 +36,7 @@ def _seed_basic_fleet(district="Bugesera"):
 
 
 def _seed_completed_task(manager, tech, wp, hours_to_resolve=4):
-    now = datetime.utcnow()
+    now = utcnow()
     task = MaintenanceTask(
         water_point_id=wp.id,
         created_by_id=manager.id,
@@ -308,15 +309,13 @@ def test_admin_report_log_viewer_lists_entries(app, client):
 
 
 def _make_report_log(db, user, report_type, export_format, row_count=None, when=None, scope="Bugesera"):
-    from datetime import datetime as _dt
-
     log = ReportLog(
         report_type=report_type,
         export_format=export_format,
         generated_by_id=user.id,
         district_scope=scope,
         row_count=row_count,
-        generated_at=when or _dt.utcnow(),
+        generated_at=when or utcnow(),
     )
     db.session.add(log)
     db.session.commit()
@@ -359,11 +358,9 @@ def test_report_log_filter_by_export_format(app, client):
 
 
 def test_report_log_sort_by_time_direction(app, client):
-    from datetime import datetime as _dt, timedelta
-
     with app.app_context():
         admin = make_user(db, "admin", "Bugesera", "admin1")
-        base = _dt.utcnow()
+        base = utcnow()
         _make_report_log(db, admin, "status", "view", when=base - timedelta(days=2))
         _make_report_log(db, admin, "status", "view", when=base - timedelta(days=1))
         _make_report_log(db, admin, "status", "view", when=base)
