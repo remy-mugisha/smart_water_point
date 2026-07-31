@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required
 
 from app import db
@@ -57,7 +57,7 @@ def upload_api():
         return jsonify({"success": True, "processed": count})
     except Exception as exc:
         db.session.rollback()
-        app.logger.error("API upload failed: %s", exc, exc_info=True)
+        current_app.logger.error("API upload failed: %s", exc, exc_info=True)
         return jsonify({"error": "Failed to process file"}), 500
 
 

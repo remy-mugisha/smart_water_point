@@ -3,9 +3,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 
 class Config:
@@ -30,6 +29,9 @@ class Config:
     MAIL_USERNAME = os.environ.get("SMTP_USER")
     MAIL_PASSWORD = os.environ.get("SMTP_PASS")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_FROM", "noreply@smartwater.rw")
+    # Set MAIL_DEBUG=1 in .env to print the raw SMTP conversation (incl. AUTH)
+    # to the terminal for troubleshooting. Turn off in production.
+    MAIL_DEBUG = os.environ.get("MAIL_DEBUG", "0") == "1"
 
 
 class DevelopmentConfig(Config):

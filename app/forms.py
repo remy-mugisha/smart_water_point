@@ -4,8 +4,6 @@ from wtforms import (
     BooleanField,
     DateTimeField,
     FileField,
-    FloatField,
-    IntegerField,
     PasswordField,
     SelectField,
     StringField,
@@ -15,14 +13,6 @@ from wtforms import (
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp, ValidationError
 
 from app.models import TASK_PRIORITIES, User
-from app.rwanda_geo import (
-    BUGESERA_DISTRICT,
-    BUGESERA_SECTOR_CHOICES,
-    all_cell_choices,
-    all_village_choices,
-    cells_for_sector,
-    villages_for_cell,
-)
 
 DISTRICT_CHOICES = [
     ("", "Select District"),
@@ -32,54 +22,6 @@ DISTRICT_CHOICES = [
     ("Kayonza", "Kayonza"),
     ("Rwamagana", "Rwamagana"),
 ]
-
-
-class RegistrationForm(FlaskForm):
-    username = StringField("Username", validators=[DataRequired(), Length(min=3, max=80)])
-    email = StringField("Email", validators=[DataRequired(), Email()])
-    full_name = StringField("Full Name", validators=[DataRequired(), Length(min=2, max=150)])
-    phone = StringField("Phone Number", validators=[Optional(), Length(max=20)])
-    district = SelectField("District", choices=[(BUGESERA_DISTRICT, BUGESERA_DISTRICT)], validators=[DataRequired()])
-    sector = SelectField("Sector", choices=BUGESERA_SECTOR_CHOICES, validators=[DataRequired()])
-    cell = SelectField("Cell", choices=all_cell_choices(), validators=[DataRequired()])
-    village = SelectField("Village", choices=all_village_choices(), validators=[DataRequired()])
-    role = SelectField(
-        "Role",
-        choices=[
-            ("viewer", "Viewer"),
-            ("district_technician", "Technician"),
-            ("district_manager", "Admin"),
-        ],
-        validators=[DataRequired()],
-    )
-    password = PasswordField(
-        "Password",
-        validators=[DataRequired(), Length(min=8, message="Password must be at least 8 characters")],
-    )
-    confirm_password = PasswordField(
-        "Confirm Password",
-        validators=[DataRequired(), EqualTo("password", message="Passwords must match")],
-    )
-    agree_terms = BooleanField(
-        "I agree to the Privacy Policy",
-        validators=[DataRequired(message="You must agree to the Privacy Policy to register.")],
-    )
-
-    def validate_username(self, username):
-        if User.query.filter_by(username=username.data).first():
-            raise ValidationError("Username already taken. Please choose another.")
-
-    def validate_email(self, email):
-        if User.query.filter_by(email=email.data).first():
-            raise ValidationError("Email already registered. Please use another.")
-
-    def validate_cell(self, cell):
-        if cell.data not in cells_for_sector(self.sector.data):
-            raise ValidationError("Selected cell does not belong to the selected sector.")
-
-    def validate_village(self, village):
-        if village.data not in villages_for_cell(self.sector.data, self.cell.data):
-            raise ValidationError("Selected village does not belong to the selected cell.")
 
 
 class LoginForm(FlaskForm):
@@ -117,13 +59,6 @@ class DataUploadForm(FlaskForm):
         validators=[FileRequired(), FileAllowed(["csv", "xlsx"], "CSV and Excel files only.")],
     )
     notes = TextAreaField("Notes about this data")
-
-
-class TrainModelForm(FlaskForm):
-    data_file = FileField(
-        "Labeled Training Data (CSV or Excel)",
-        validators=[FileRequired(), FileAllowed(["csv", "xlsx"], "CSV and Excel files only.")],
-    )
 
 
 class UserProfileForm(FlaskForm):
@@ -221,13 +156,3 @@ class TaskCompleteForm(FlaskForm):
 
 class TaskVerifyForm(FlaskForm):
     note = TextAreaField("Verification Notes (Optional)", validators=[Optional(), Length(max=1000)])
-
-
-class SystemSettingsForm(FlaskForm):
-    app_name = StringField("System Name", validators=[DataRequired(), Length(max=150)])
-    admin_email = StringField("Admin Contact Email", validators=[DataRequired(), Email()])
-    risk_threshold = FloatField("At-Risk Probability Threshold", validators=[DataRequired()])
-    session_cookie_secure = BooleanField("Secure Cookies (HTTPS only)")
-    max_upload_mb = IntegerField("Max Upload Size (MB)", validators=[DataRequired()])
-    default_district = SelectField("Default District", choices=DISTRICT_CHOICES)
-    submit = SubmitField("Save Settings")

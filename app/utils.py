@@ -37,6 +37,15 @@ def api_role_required(*roles):
     return decorator
 
 
+def home_for(user=None):
+    """Endpoint a user should land on after login: admins get the admin
+    dashboard, everyone else gets the technician dashboard."""
+    role = getattr(user or current_user, "role", None)
+    if role == "admin":
+        return "admin.dashboard"
+    return "technician.dashboard"
+
+
 def role_required(*roles):
     def decorator(f):
         @wraps(f)
@@ -45,7 +54,7 @@ def role_required(*roles):
                 return redirect(url_for("auth.login"))
             if current_user.role not in roles:
                 flash("You do not have permission to access this page.", "danger")
-                return redirect(url_for("dashboard.index"))
+                return redirect(url_for(home_for()))
             return f(*args, **kwargs)
 
         return decorated_function

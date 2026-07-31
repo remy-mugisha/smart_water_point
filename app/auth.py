@@ -5,66 +5,21 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db
-from app.forms import ChangePasswordForm, LoginForm, PreferencesForm, RegistrationForm, SetPasswordForm, UserProfileForm
+from app.forms import ChangePasswordForm, LoginForm, PreferencesForm, SetPasswordForm, UserProfileForm
 from app.models import AuditLog, User
-from app.rwanda_geo import BUGESERA_SECTORS
-from app.utils import utcnow
+from app.utils import home_for, utcnow
 
 auth_bp = Blueprint("auth", __name__)
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard.index"))
-
-    form = RegistrationForm()
-    if request.method == "GET":
-        requested_role = request.args.get("role")
-        if requested_role in ("district_manager", "district_technician"):
-            form.role.data = requested_role
-
-    if form.validate_on_submit():
-        is_manager = form.role.data == "district_manager"
-
-        password_hash = bcrypt.hashpw(form.password.data.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        selected_role = form.role.data or "viewer"
-        user = User(
-            username=form.username.data,
-            email=form.email.data,
-            full_name=form.full_name.data,
-            phone=form.phone.data,
-            district=form.district.data,
-            sector=form.sector.data,
-            cell=form.cell.data,
-            village=form.village.data,
-            role=selected_role,
-            is_approved=is_manager,
-            is_active=is_manager,
-            password_hash=password_hash,
-        )
-        db.session.add(user)
-        db.session.flush()
-        db.session.add(
-            AuditLog(user_id=user.id, action="user_registered", details=f"User {user.username} registered")
-        )
-        db.session.commit()
-
-        if is_manager:
-            flash("Registration successful. District Manager accounts are activated automatically.", "success")
-            return redirect(url_for("auth.login"))
-
-        flash("Registration successful. Please wait for admin approval.", "success")
-        return redirect(url_for("auth.pending_approval"))
-
-    return render_template("auth/register.html", form=form, sectors=BUGESERA_SECTORS)
+    flash("Self-registration is disabled. Contact an administrator to create your account.", "warning")
+    return redirect(url_for("auth.login"))
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard.index"))
-
     form = LoginForm()
     if form.validate_on_submit():
         email = form.email.data.strip().lower()
@@ -89,7 +44,7 @@ def login():
             next_page = request.args.get("next")
             if next_page and urlsplit(next_page).netloc == "" and urlsplit(next_page).scheme == "":
                 return redirect(next_page)
-            return redirect(url_for("dashboard.index"))
+            return redirect(url_for(home_for(user)))
 
         flash("Invalid username or password.", "danger")
 
@@ -100,7 +55,7 @@ def login():
 @login_required
 def change_temp_password():
     if not current_user.must_change_password:
-        return redirect(url_for("dashboard.index"))
+        return redirect(url_for(home_for()))
 
     form = SetPasswordForm()
     if form.validate_on_submit():
@@ -117,7 +72,7 @@ def change_temp_password():
         )
         db.session.commit()
         flash("Password changed successfully. Welcome to the system!", "success")
-        return redirect(url_for("dashboard.index"))
+        return redirect(url_for(home_for()))
 
     return render_template("auth/change_temp_password.html", form=form)
 

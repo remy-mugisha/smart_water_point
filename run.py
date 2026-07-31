@@ -11,6 +11,26 @@ with app.app_context():
     db.create_all()
 
 
+@app.cli.command("send-test-email")
+@click.argument("recipient")
+def send_test_email_command(recipient):
+    """Send a test email through the configured SMTP server (use a real inbox)."""
+    from flask import current_app
+    from flask_mail import Message
+
+    from app import mail
+    from app.services.mail_service import log_smtp_config
+
+    log_smtp_config()
+    msg = Message(
+        subject="Smart Water - SMTP test",
+        recipients=[recipient],
+        body="This is a test email from the Smart Water system.",
+    )
+    mail.send(msg)
+    click.echo(f"OK: email sent to {recipient}")
+
+
 @app.cli.command("init-db")
 def init_db():
     """Create database tables (redundant — now done automatically on startup)."""

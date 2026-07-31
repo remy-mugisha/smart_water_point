@@ -40,13 +40,13 @@
             <td class="text-end">
                 <form class="d-inline" method="post" action="{{ url_for('admin.resend_credentials', user_id=tech.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Resend credentials email">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Generate new password and email it to the technician">
                         <i class="fa-solid fa-envelope"></i> Resend Credentials
                     </button>
                 </form>
                 <form class="d-inline" method="post" action="{{ url_for('admin.toggle_user_active', user_id=tech.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-danger" type="submit" title="{{ "Deactivate" if tech.is_active else "Activate" }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit" title="{{ "Deactivate" if tech.is_active else "Activate" }}" {% if tech.is_active %}onclick="return confirm('Deactivate {{ tech.full_name }}? They will not be able to log in.')"{% endif %}>
                         {{ "Deactivate" if tech.is_active else "Activate" }}
                     </button>
                 </form>

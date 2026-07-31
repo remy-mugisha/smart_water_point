@@ -10,15 +10,15 @@ def test_settings_page_requires_admin(app, client):
         make_user(db, "viewer", "Bugesera", "viewer1")
         make_user(db, "admin", "Bugesera", "admin1")
 
+    # System Settings route has been removed — 404 for everyone
     login(client, "viewer1")
     resp = client.get("/admin/system-settings")
-    assert resp.status_code == 302  # redirected, not authorized
+    assert resp.status_code == 404
 
     client.get("/auth/logout")
     login(client, "admin1")
     resp = client.get("/admin/system-settings")
-    assert resp.status_code == 200
-    assert b"System Name" in resp.data
+    assert resp.status_code == 404
 
 
 def test_default_settings_present(app):
@@ -29,26 +29,15 @@ def test_default_settings_present(app):
         assert get_setting("app_name") == "Smart Water Point Monitoring System"
 
 
-def test_settings_post_updates_value_and_pdf(app, client):
+def test_settings_post_updates_value_and_pdf(app):
+    """Settings can still be updated programmatically (admin UI route removed)."""
     with app.app_context():
-        make_user(db, "admin", "Bugesera", "admin1")
-        make_water_point(db, water_point_id="WP-1", district="Bugesera")
+        set_setting("app_name", "RWB Water Monitor")
+        set_setting("admin_email", "ops@rwb.rw")
+        set_setting("risk_threshold", 0.55)
+        set_setting("max_upload_mb", 20)
+        set_setting("default_district", "Bugesera")
 
-    login(client, "admin1")
-    resp = client.post(
-        "/admin/system-settings",
-        data={
-            "app_name": "RWB Water Monitor",
-            "admin_email": "ops@rwb.rw",
-            "risk_threshold": "0.55",
-            "max_upload_mb": "20",
-            "default_district": "Bugesera",
-        },
-        follow_redirects=True,
-    )
-    assert resp.status_code == 200
-
-    with app.app_context():
         assert get_setting("app_name") == "RWB Water Monitor"
         assert get_setting("risk_threshold") == 0.55
 

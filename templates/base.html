@@ -63,9 +63,7 @@
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
                         <li><a class="dropdown-item" href="{{ url_for('auth.settings') }}"><i class="fa-solid fa-gear"></i> Settings</a></li>
                         {% if current_user.role == 'admin' %}
-                        <li><a class="dropdown-item" href="{{ url_for('admin.system_settings') }}"><i class="fa-solid fa-sliders"></i> System Settings</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('admin.audit_logs') }}"><i class="fa-solid fa-clipboard-list"></i> Audit Logs</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('admin.model_performance') }}"><i class="fa-solid fa-brain"></i> Model Performance</a></li>
                         {% endif %}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
@@ -75,7 +73,6 @@
             {% else %}
             <div class="navbar-nav ms-auto">
                 <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-                <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
             </div>
             {% endif %}
         </div>

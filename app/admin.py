@@ -1,20 +1,14 @@
-﻿import json
-from datetime import datetime
-from pathlib import Path
+﻿from datetime import datetime
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
-from werkzeug.utils import secure_filename
 
 from app import db
-from app.forms import AdminApprovalForm, ChangeRoleForm, CreateTechnicianForm, SystemSettingsForm, TrainModelForm
+from app.forms import AdminApprovalForm, ChangeRoleForm, CreateTechnicianForm
 from app.models import AuditLog, ReportLog, User, WaterPoint
 from app.report_export import build_excel_report, build_pdf_report
-from app.settings import all_settings, ensure_defaults, set_setting
 from app.utils import admin_required, utcnow
-
-MODELS_DIR = Path("models")
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -68,73 +62,6 @@ def dashboard():
         recent_logs=AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(20).all(),
     )
 
-
-@admin_bp.route("/model-performance", methods=["GET", "POST"])
-@login_required
-@admin_required
-def model_performance():
-    form = TrainModelForm()
-
-    if form.validate_on_submit():
-        upload = form.data_file.data
-        filename = secure_filename(upload.filename)
-        upload_dir = Path("data") / "raw"
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        filepath = upload_dir / filename
-        upload.save(filepath)
-
-        try:
-            from app.ml_train import train_model
-
-            metrics = train_model(filepath)
-            db.session.add(
-                AuditLog(
-                    user_id=current_user.id,
-                    action="model_retrained",
-                    details=f"Retrained model on {filename}: accuracy={metrics['accuracy']}, f1={metrics['f1_score']}",
-                )
-            )
-            db.session.commit()
-            flash(f"Model retrained successfully - accuracy {metrics['accuracy'] * 100:.1f}%.", "success")
-        except Exception as exc:
-            current_app.logger.error("Model training failed: %s", exc, exc_info=True)
-            flash(f"Training failed: {exc}", "danger")
-        return redirect(url_for("admin.model_performance"))
-
-    metrics = None
-    metrics_path = MODELS_DIR / "training_metrics.json"
-    if metrics_path.exists():
-        with open(metrics_path, encoding="utf-8") as fh:
-            metrics = json.load(fh)
-
-    return render_template(
-        "admin/model_performance.html",
-        form=form,
-        metrics=metrics,
-        model_available=(MODELS_DIR / "water_point_model.pkl").exists(),
-    )
-
-
-@admin_bp.route("/model-performance/download/model")
-@login_required
-@admin_required
-def download_model():
-    path = (MODELS_DIR / "water_point_model.pkl").resolve()
-    if not path.exists():
-        flash("No trained model available yet.", "warning")
-        return redirect(url_for("admin.model_performance"))
-    return send_file(path, as_attachment=True, download_name="water_point_model.pkl")
-
-
-@admin_bp.route("/model-performance/download/metrics")
-@login_required
-@admin_required
-def download_metrics():
-    path = (MODELS_DIR / "training_metrics.json").resolve()
-    if not path.exists():
-        flash("No training metrics available yet.", "warning")
-        return redirect(url_for("admin.model_performance"))
-    return send_file(path, as_attachment=True, download_name="training_metrics.json", mimetype="application/json")
 
 
 @admin_bp.route("/users")
@@ -254,12 +181,16 @@ def create_technician():
 
         if email_error:
             flash(
-                f"Account created for {user.full_name}. However, the welcome email could not be delivered: {email_error}. "
+                f"Account created for {user.full_name}. The welcome email could not be delivered: {email_error}. "
                 f"You can resend credentials from the technicians list.",
                 "warning",
             )
         else:
-            flash(f"Technician {user.full_name} created successfully. Credentials have been sent to {user.email}.", "success")
+            flash(
+                f"Technician {user.full_name} created successfully. "
+                f"Credentials have been sent to {user.email}.",
+                "success",
+            )
 
         return redirect(url_for("admin.technicians"))
 
@@ -276,7 +207,7 @@ def resend_credentials(user_id):
     if error:
         flash(error, "danger")
     else:
-        flash(f"Credentials resent to {user.email}.", "success")
+        flash(f"New credentials have been sent to {user.email}.", "success")
     return redirect(url_for("admin.technicians"))
 
 
@@ -372,36 +303,6 @@ def _build_audit_log_rows(args):
     ]
     return filters, rows
 
-
-@admin_bp.route("/system-settings", methods=["GET", "POST"])
-@login_required
-@admin_required
-def system_settings():
-    ensure_defaults()
-    form = SystemSettingsForm()
-    values = {s["key"]: s["value"] for s in all_settings()}
-
-    if form.validate_on_submit():
-        set_setting("app_name", form.app_name.data)
-        set_setting("admin_email", form.admin_email.data)
-        set_setting("risk_threshold", form.risk_threshold.data)
-        set_setting("session_cookie_secure", form.session_cookie_secure.data)
-        set_setting("max_upload_mb", form.max_upload_mb.data)
-        set_setting("default_district", form.default_district.data)
-        db.session.add(
-            AuditLog(user_id=current_user.id, action="system_settings_updated", details="Admin updated system settings")
-        )
-        db.session.commit()
-        flash("Settings saved.", "success")
-        return redirect(url_for("admin.system_settings"))
-
-    form.app_name.data = values.get("app_name")
-    form.admin_email.data = values.get("admin_email")
-    form.risk_threshold.data = values.get("risk_threshold")
-    form.session_cookie_secure.data = values.get("session_cookie_secure")
-    form.max_upload_mb.data = values.get("max_upload_mb")
-    form.default_district.data = values.get("default_district")
-    return render_template("admin/system_settings.html", form=form, settings=values)
 
 
 @admin_bp.route("/report-logs")

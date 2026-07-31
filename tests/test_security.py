@@ -58,7 +58,48 @@ def test_api_predict_blocks_viewer_role(app, client):
     assert resp.get_json() == {"error": "Permission denied"}
 
 
-def test_register_persists_selected_role_for_district_manager(app, client):
+def test_admin_redirected_to_admin_dashboard_after_login(app, client):
+    with app.app_context():
+        make_user(db, "admin", "Bugesera", "admin1")
+
+    resp = client.post("/auth/login", data={"email": "admin1@example.rw", "password": "Password123!"})
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/admin/dashboard"
+
+
+def test_technician_redirected_to_technician_dashboard_after_login(app, client):
+    with app.app_context():
+        make_user(db, "district_technician", "Bugesera", "tech1")
+
+    resp = client.post("/auth/login", data={"email": "tech1@example.rw", "password": "Password123!"})
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/technician/dashboard"
+
+
+def test_technician_blocked_from_admin_dashboard(app, client):
+    with app.app_context():
+        make_user(db, "district_technician", "Bugesera", "tech1")
+
+    login(client, "tech1")
+    resp = client.get("/admin/dashboard", follow_redirects=True)
+    assert resp.status_code == 200
+    assert b"You do not have permission" in resp.data
+
+
+def test_login_page_shows_even_when_already_authenticated(app, client):
+    """Clicking the login link from the welcome email must always show the
+    login form, even if a session cookie from a previous login still exists."""
+    with app.app_context():
+        make_user(db, "district_technician", "Bugesera", "tech1")
+
+    login(client, "tech1")
+    resp = client.get("/auth/login")
+    assert resp.status_code == 200
+    assert b"Log In" in resp.data or b"Sign In" in resp.data
+
+
+def test_register_disabled_redirects_to_login(app, client):
+    """Public registration is disabled; POST to /auth/register redirects to login."""
     resp = client.post(
         "/auth/register",
         data={
@@ -79,12 +120,11 @@ def test_register_persists_selected_role_for_district_manager(app, client):
     )
 
     assert resp.status_code == 200
+    assert b"Self-registration is disabled" in resp.data
     with app.app_context():
-        user = db.session.query(__import__("app.models", fromlist=["User"]).User).filter_by(username="managerreg").first()
-        assert user is not None
-        assert user.role == "district_manager"
-        assert user.is_approved is True
-        assert user.is_active is True
+        from app.models import User
+        user = db.session.query(User).filter_by(username="managerreg").first()
+        assert user is None, "No user should be created via public registration"
 
 
 def _extract_csrf(html_bytes):

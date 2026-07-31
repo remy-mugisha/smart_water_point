@@ -14,25 +14,36 @@ from app.models import AuditLog, WaterPoint, WaterSource
 from app.utils import allowed_file, role_required, scoped_by_district, utcnow
 
 dashboard_bp = Blueprint("dashboard", __name__)
+technician_bp = Blueprint("technician", __name__, url_prefix="/technician")
 
 
-@dashboard_bp.route("/")
-@login_required
-def index():
+def _index_context():
     counts = dict(
         scoped_water_points()
         .with_entities(WaterPoint.current_status, func.count(WaterPoint.id))
         .group_by(WaterPoint.current_status)
         .all()
     )
-    status_counts = {
+    return {
+        "water_points": scoped_water_points().all(),
         "total": sum(counts.values()),
         "at_risk": counts.get("At Risk", 0),
         "functional": counts.get("Functional", 0),
         "non_functional": counts.get("Non-Functional", 0),
         "under_repair": counts.get("Under Repair", 0),
     }
-    return render_template("dashboard/index.html", water_points=scoped_water_points().all(), **status_counts)
+
+
+@dashboard_bp.route("/")
+@login_required
+def index():
+    return render_template("dashboard/index.html", **_index_context())
+
+
+@technician_bp.route("/dashboard")
+@login_required
+def dashboard():
+    return render_template("dashboard/index.html", **_index_context())
 
 
 @dashboard_bp.route("/map")

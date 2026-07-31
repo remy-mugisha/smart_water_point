@@ -3,8 +3,8 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>Create Technician</h1>
-        <p>Create a new technician account. Credentials will be sent via email.</p>
+        <h1>Create Technician Account</h1>
+        <p>The system will generate a temporary password and email it to the technician.</p>
     </div>
     <a class="btn btn-outline-primary" href="{{ url_for('admin.technicians') }}"><i class="fa-solid fa-arrow-left"></i> Back to Technicians</a>
 </div>
@@ -59,7 +59,7 @@
                 {% for error in form.village.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
             </div>
         </div>
-        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-user-plus"></i> Create Account</button>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-user-plus"></i> Create Account &amp; Send Email</button>
     </form>
 </div>
 {% endblock %}

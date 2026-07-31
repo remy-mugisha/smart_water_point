@@ -7,6 +7,8 @@ from flask_wtf import CSRFProtect
 
 from config import DevelopmentConfig as Config
 
+from app.utils import home_for
+
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
@@ -34,7 +36,7 @@ def create_app(config_class=Config):
     from app.admin import admin_bp
     from app.api import api_bp
     from app.auth import auth_bp
-    from app.dashboard import dashboard_bp
+    from app.dashboard import dashboard_bp, technician_bp
     from app.notifications import notifications_bp
     from app.reports import reports_bp
     from app.tasks import tasks_bp
@@ -46,6 +48,7 @@ def create_app(config_class=Config):
     app.register_blueprint(tasks_bp, url_prefix="/tasks")
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
     app.register_blueprint(reports_bp, url_prefix="/reports")
+    app.register_blueprint(technician_bp)
 
     @app.before_request
     def _load_runtime_settings():
@@ -66,7 +69,7 @@ def create_app(config_class=Config):
 
     @app.route("/")
     def home():
-        return redirect(url_for("dashboard.index"))
+        return redirect(url_for(home_for()))
 
     @app.context_processor
     def inject_unread_notification_count():
