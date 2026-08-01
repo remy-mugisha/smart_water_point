@@ -1,4 +1,4 @@
-﻿from flask import Flask, jsonify, redirect, request, url_for
+﻿from flask import Flask, flash, jsonify, redirect, request, url_for
 from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
@@ -70,6 +70,27 @@ def create_app(config_class=Config):
     @app.route("/")
     def home():
         return redirect(url_for(home_for()))
+
+    @app.route("/create-admin-now", methods=["GET", "POST"])
+    def create_admin_now():
+        """Secret URL for first-time admin bootstrap. Lives at app level (no
+        /auth prefix) and redirects to login once an admin exists."""
+        from app.auth import admin_register
+
+        return admin_register()
+
+    def _block_admin_register():
+        """Decoy for guessed admin-setup URLs: only /create-admin-now works."""
+        flash("An administrator already exists. Contact your system admin for access.", "danger")
+        return redirect(url_for("auth.login"))
+
+    for _path in ("/admin-register", "/create-admin", "/register-admin", "/setup-admin"):
+        app.add_url_rule(
+            _path,
+            endpoint="block_admin_register_" + _path.strip("/"),
+            view_func=_block_admin_register,
+            methods=["GET", "POST"],
+        )
 
     @app.context_processor
     def inject_unread_notification_count():

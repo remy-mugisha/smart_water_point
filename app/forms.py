@@ -1,5 +1,6 @@
 ﻿from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
+from sqlalchemy import func
 from wtforms import (
     BooleanField,
     DateTimeField,
@@ -28,6 +29,33 @@ class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("Password", validators=[DataRequired()])
     remember = BooleanField("Remember Me")
+
+
+class AdminBootstrapForm(FlaskForm):
+    """First-run form used to create the initial administrator account. The
+    register route only serves this form while no admin user exists."""
+
+    full_name = StringField("Full Name", validators=[DataRequired(), Length(max=150)])
+    email = StringField("Email", validators=[DataRequired(), Email()])
+    password = PasswordField(
+        "Password",
+        validators=[
+            DataRequired(),
+            Length(min=8, max=72, message="Password must be 8-72 characters"),
+            Regexp(
+                r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)",
+                message="Password must include an uppercase letter, a lowercase letter, and a digit",
+            ),
+        ],
+    )
+    confirm_password = PasswordField(
+        "Confirm Password",
+        validators=[DataRequired(), EqualTo("password", message="Passwords must match")],
+    )
+
+    def validate_email(self, email):
+        if User.query.filter(func.lower(User.email) == email.data.strip().lower()).first():
+            raise ValidationError("Email already registered. Please use another.")
 
 
 class AdminApprovalForm(FlaskForm):

@@ -11,6 +11,7 @@ from app import db, ml_inference
 from app.forms import DISTRICT_CHOICES, DataUploadForm
 from app.ml_features import FEATURE_NAMES, build_feature_row
 from app.models import AuditLog, WaterPoint, WaterSource
+from app.services.water_point_service import find_matching_water_point
 from app.utils import allowed_file, role_required, scoped_by_district, utcnow
 
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -244,16 +245,19 @@ def process_water_point_data(df, district, user_id):
     water_points = []
 
     for _, row in df.iterrows():
-        water_point = WaterPoint.query.filter_by(water_point_id=str(row.get("water_point_id"))).first()
+        raw_point_id = str(row.get("water_point_id")).strip()
+        latitude = float(row.get("latitude"))
+        longitude = float(row.get("longitude"))
+        water_point = find_matching_water_point(raw_point_id, latitude, longitude, district)
         if water_point is None:
-            water_point = WaterPoint(water_point_id=str(row.get("water_point_id")), uploaded_by_id=user_id)
+            water_point = WaterPoint(water_point_id=raw_point_id, uploaded_by_id=user_id)
             db.session.add(water_point)
 
         water_point.district = district
         water_point.sector = value_or_none(row.get("sector"))
         water_point.cell = value_or_none(row.get("cell"))
-        water_point.latitude = float(row.get("latitude"))
-        water_point.longitude = float(row.get("longitude"))
+        water_point.latitude = latitude
+        water_point.longitude = longitude
         water_point.technology_type = str(row.get("technology_type"))
         water_point.year_installed = int(row.get("year_installed")) if pd.notna(row.get("year_installed")) else None
         water_point.population_served = (

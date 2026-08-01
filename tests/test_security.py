@@ -98,33 +98,76 @@ def test_login_page_shows_even_when_already_authenticated(app, client):
     assert b"Log In" in resp.data or b"Sign In" in resp.data
 
 
-def test_register_disabled_redirects_to_login(app, client):
-    """Public registration is disabled; POST to /auth/register redirects to login."""
+def test_first_user_can_register_as_admin(app, client):
+    """When no admin exists, /create-admin-now creates the first administrator."""
     resp = client.post(
-        "/auth/register",
+        "/create-admin-now",
         data={
-            "username": "managerreg",
-            "email": "managerreg@example.rw",
-            "full_name": "Manager Reg",
-            "phone": "0788123456",
-            "district": "Bugesera",
-            "sector": "Gashora",
-            "cell": "Biryogo",
-            "village": "Bidudu",
-            "role": "district_manager",
+            "full_name": "First Admin",
+            "email": "admin@example.rw",
             "password": "Password123!",
             "confirm_password": "Password123!",
-            "agree_terms": "y",
         },
         follow_redirects=True,
     )
-
     assert resp.status_code == 200
-    assert b"Self-registration is disabled" in resp.data
     with app.app_context():
         from app.models import User
-        user = db.session.query(User).filter_by(username="managerreg").first()
-        assert user is None, "No user should be created via public registration"
+
+        admin = db.session.query(User).filter_by(email="admin@example.rw").first()
+        assert admin is not None
+        assert admin.role == "admin"
+        assert admin.is_approved is True
+        assert admin.is_active is True
+        assert admin.must_change_password is False
+
+
+def test_register_blocked_when_admin_exists(app, client):
+    """Once an admin exists, public registration is disabled."""
+    with app.app_context():
+        make_user(db, "admin", "Bugesera", "admin1")
+
+    resp = client.post(
+        "/create-admin-now",
+        data={
+            "full_name": "Second Admin",
+            "email": "admin2@example.rw",
+            "password": "Password123!",
+            "confirm_password": "Password123!",
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"An administrator already exists" in resp.data
+    with app.app_context():
+        from app.models import User
+
+        user = db.session.query(User).filter_by(email="admin2@example.rw").first()
+        assert user is None, "No user should be created once an admin exists"
+
+
+def test_admin_can_reset_user_password(app, client):
+    with app.app_context():
+        make_user(db, "admin", "Bugesera", "admin1")
+        target = make_user(db, "district_technician", "Bugesera", "tech1")
+        target_id = target.id
+
+    login(client, "admin1")
+    resp = client.post(
+        f"/admin/users/{target_id}/reset-password",
+        data={"new_password": "NewPassword123!", "confirm_new_password": "NewPassword123!"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"must change it on next login" in resp.data
+    with app.app_context():
+        from app.models import User
+
+        import bcrypt
+
+        user = db.session.get(User, target_id)
+        assert user.must_change_password is True
+        assert bcrypt.checkpw(b"NewPassword123!", user.password_hash.encode("utf-8"))
 
 
 def _extract_csrf(html_bytes):

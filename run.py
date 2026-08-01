@@ -196,5 +196,85 @@ def seed_command(wp_path, train_path, user_id):
     click.echo(f"Predicted risk for {predicted} water points.")
 
 
+@app.cli.command("dedupe-water-points")
+@click.option("--preview", is_flag=True, help="List duplicate groups without deleting anything.")
+@click.option("--user-id", "user_id", default=1, type=int, help="User ID to attribute the audit log entry to.")
+def dedupe_water_points(preview, user_id):
+    """Find and merge duplicate water points (same ID variant or same location)."""
+    from app.models import AuditLog, User, WaterPoint
+
+    from app.services.water_point_service import find_duplicate_groups, merge_all_duplicates
+
+    groups = find_duplicate_groups()
+    if not groups:
+        click.echo("No duplicate water points found.")
+        return
+
+    for group in groups:
+        points = group["points"]
+        reason = "same ID" if group["reason"] == "id" else "same location"
+        click.echo(
+            f"[{reason}] {len(points)} points -> keep #{points[0].id} ({points[0].water_point_id}), "
+            f"merge {', '.join(f'#{wp.id} ({wp.water_point_id})' for wp in points[1:])}"
+        )
+
+    if preview:
+        click.echo(f"{len(groups)} duplicate group(s) found; nothing deleted (--preview).")
+        return
+
+    actor = User.query.get(user_id) if user_id else None
+    summary = merge_all_duplicates()
+    db.session.add(
+        AuditLog(
+            user_id=actor.id if actor else None,
+            action="dedupe_water_points",
+            details=(
+                f"Merged {summary['removed']} duplicate water point(s) "
+                f"across {summary['groups']} group(s), keeping {summary['kept']}."
+            ),
+        )
+    )
+    db.session.commit()
+    click.echo(
+        f"Merged {summary['removed']} duplicate(s) across {summary['groups']} group(s). "
+        f"Total water points now: {WaterPoint.query.count()}."
+    )
+
+
+@app.cli.command("reset-password")
+@click.option("--email", required=True, help="Email of the user whose password to reset.")
+@click.option("--password", default=None, help="New password. Auto-generated if omitted.")
+@click.option("--force-change/--no-force-change", default=True, help="Force the user to change the password on next login (default: on).")
+def reset_password_command(email, password, force_change):
+    """Reset a user's password from the command line."""
+    import secrets
+
+    import bcrypt
+    from sqlalchemy import func
+
+    from app.models import AuditLog, User
+
+    user = User.query.filter(func.lower(User.email) == email.strip().lower()).first()
+    if user is None:
+        raise click.ClickException(f"No user found with email {email}")
+
+    new_password = password or secrets.token_urlsafe(12)
+    user.password_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    user.must_change_password = bool(force_change)
+    db.session.add(
+        AuditLog(
+            user_id=user.id,
+            action="password_reset_cli",
+            details=f"Password reset for {user.email} via CLI",
+        )
+    )
+    db.session.commit()
+    click.echo(f"Password reset for {user.email} ({user.full_name}).")
+    if not password:
+        click.echo(f"New password: {new_password}")
+    if force_change:
+        click.echo("User must change this password on next login.")
+
+
 if __name__ == "__main__":
     app.run(debug=True)

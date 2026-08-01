@@ -5,17 +5,75 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app import db
-from app.forms import ChangePasswordForm, LoginForm, PreferencesForm, SetPasswordForm, UserProfileForm
+from app.forms import (
+    AdminBootstrapForm,
+    ChangePasswordForm,
+    LoginForm,
+    PreferencesForm,
+    SetPasswordForm,
+    UserProfileForm,
+)
 from app.models import AuditLog, User
 from app.utils import home_for, utcnow
 
 auth_bp = Blueprint("auth", __name__)
 
 
-@auth_bp.route("/register", methods=["GET", "POST"])
-def register():
-    flash("Self-registration is disabled. Contact an administrator to create your account.", "warning")
-    return redirect(url_for("auth.login"))
+def _generate_username(email):
+    prefix = email.split("@")[0].lower()
+    candidate = prefix
+    suffix = 1
+    while User.query.filter_by(username=candidate).first():
+        candidate = f"{prefix}{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _admin_exists():
+    return User.query.filter_by(role="admin").first() is not None
+
+
+def admin_register():
+    """Bootstrap route: creates the first administrator only.
+
+    Mounted at the secret /create-admin-now URL in app/__init__.py rather than
+    on the public auth blueprint, so the form isn't discoverable from the
+    login page. Once an admin exists it redirects to login.
+    """
+    if _admin_exists():
+        flash("An administrator already exists. Contact your system admin for access.", "warning")
+        return redirect(url_for("auth.login"))
+
+    form = AdminBootstrapForm()
+    if form.validate_on_submit():
+        email = form.email.data.strip().lower()
+        admin = User(
+            username=_generate_username(email),
+            email=email,
+            full_name=form.full_name.data.strip(),
+            password_hash=bcrypt.hashpw(form.password.data.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
+            role="admin",
+            is_approved=True,
+            is_active=True,
+            must_change_password=False,
+            approved_at=utcnow(),
+        )
+        db.session.add(admin)
+        db.session.flush()
+        admin.approved_by = admin.id
+        db.session.add(
+            AuditLog(
+                user_id=admin.id,
+                action="admin_registered",
+                details=f"First administrator {admin.full_name} ({admin.email}) registered",
+            )
+        )
+        db.session.commit()
+        login_user(admin)
+        flash("Administrator account created. Welcome!", "success")
+        return redirect(url_for("admin.dashboard"))
+
+    return render_template("auth/register.html", form=form)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])

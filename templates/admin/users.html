@@ -34,6 +34,9 @@
                     </select>
                 </form>
                 {% endif %}
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.reset_password', user_id=user.id) }}" title="Reset this user's password">
+                    <i class="fa-solid fa-key"></i> Reset Password
+                </a>
                 <form class="d-inline" method="post" action="{{ url_for('admin.toggle_user_active', user_id=user.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-sm btn-outline-secondary" type="submit" {% if user.is_active %}onclick="return confirm('Deactivate {{ user.full_name }}? They will not be able to log in.')"{% endif %}>{{ "Deactivate" if user.is_active else "Activate" }}</button>

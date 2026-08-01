@@ -1,11 +1,12 @@
 ﻿from datetime import datetime
 
+import bcrypt
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
 
 from app import db
-from app.forms import AdminApprovalForm, ChangeRoleForm, CreateTechnicianForm
+from app.forms import AdminApprovalForm, ChangeRoleForm, CreateTechnicianForm, SetPasswordForm
 from app.models import AuditLog, ReportLog, User, WaterPoint
 from app.report_export import build_excel_report, build_pdf_report
 from app.utils import admin_required, utcnow
@@ -61,7 +62,6 @@ def dashboard():
         at_risk_points=WaterPoint.query.filter_by(current_status="At Risk").count(),
         recent_logs=AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(20).all(),
     )
-
 
 
 @admin_bp.route("/users")
@@ -145,6 +145,31 @@ def toggle_user_active(user_id):
     db.session.commit()
     flash(f"User {user.username} has been {status}.", "success")
     return redirect(url_for("admin.users"))
+
+
+@admin_bp.route("/users/<int:user_id>/reset-password", methods=["GET", "POST"])
+@login_required
+@admin_required
+def reset_password(user_id):
+    user = User.query.get_or_404(user_id)
+    form = SetPasswordForm()
+    if form.validate_on_submit():
+        user.password_hash = bcrypt.hashpw(
+            form.new_password.data.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+        user.must_change_password = True
+        db.session.add(
+            AuditLog(
+                user_id=current_user.id,
+                action="password_reset",
+                details=f"Password reset for {user.username} ({user.email}) by {current_user.username}",
+            )
+        )
+        db.session.commit()
+        flash(f"Password reset for {user.full_name}. They must change it on next login.", "success")
+        return redirect(url_for("admin.users"))
+
+    return render_template("admin/reset_password.html", user=user, form=form)
 
 
 @admin_bp.route("/technicians")
