@@ -50,7 +50,7 @@
         <div class="kicker" style="margin:1.25rem 0 .6rem">Confusion matrix</div>
         {% if metrics.confusion_matrix %}
         {% set cm = metrics.confusion_matrix %}
-        <div class="confusion-grid" style="--cm-cols:{{ cm[0]|length }}">
+        <div class="confusion-grid" data-cm-cols="{{ cm[0]|length }}">
             <div class="cm-head cm-corner" aria-hidden="true"></div>
             {% for col in cm[0] %}<div class="cm-head">Pred.<br>{{ loop.index0 }}</div>{% endfor %}
             {% for row in cm %}
@@ -120,4 +120,12 @@
         {% endfor %}
     </ul>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('.confusion-grid[data-cm-cols]').forEach(function (el) {
+        el.style.setProperty('--cm-cols', el.dataset.cmCols);
+    });
+</script>
 {% endblock %}
