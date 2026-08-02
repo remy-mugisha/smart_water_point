@@ -1064,7 +1064,6 @@ body.theme-dark .task-row:hover { background: var(--res-800); }
   top: -3px; left: -20%; right: -20%; height: 6px;
   background: var(--res-300);
   border-radius: 50%;
-  animation: ripple-sweep 2.6s ease-in-out infinite;
 }
 .reservoir-ring .ring-tick {
   position: absolute;
@@ -1108,18 +1107,6 @@ body.theme-dark .task-row:hover { background: var(--res-800); }
   opacity: 0;
   pointer-events: none;
 }
-.ripple.r1 { animation: ripple-out 1.6s ease-out infinite 0s; }
-.ripple.r2 { animation: ripple-out 1.6s ease-out infinite 0.55s; }
-
-@keyframes ripple-out {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(1.55); opacity: 0; }
-}
-@keyframes ripple-sweep {
-  0% { transform: translateY(0) scaleX(1); }
-  50% { transform: translateY(-2px) scaleX(0.96); }
-  100% { transform: translateY(0) scaleX(1); }
-}
 
 .reservoir-readout {
   font-family: var(--font-mono);
@@ -1156,23 +1143,16 @@ body.theme-dark .riverline { background: var(--res-800); }
   content: "";
   position: absolute;
   inset: 0;
-  background-image: repeating-linear-gradient(
+  /* background-image: repeating-linear-gradient(
     100deg,
     transparent 0 14px,
     rgba(255,255,255,0.28) 14px 22px
-  );
-  background-size: 200% 100%;
-  animation: riv-flow 1.4s linear infinite;
+  ); */
 }
 .riverline .riv-seg.riv-functional { background: var(--safe-600); }
 .riverline .riv-seg.riv-at-risk { background: var(--risk-600); }
 .riverline .riv-seg.riv-non-functional { background: var(--crit-600); }
 .riverline .riv-seg.riv-under-repair { background: var(--steel-500); }
-
-@keyframes riv-flow {
-  from { background-position: 0 0; }
-  to { background-position: 100% 0; }
-}
 
 .riverline .riv-label {
   position: relative;
