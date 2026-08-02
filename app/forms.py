@@ -14,6 +14,14 @@ from wtforms import (
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp, ValidationError
 
 from app.models import TASK_PRIORITIES, User
+from app.rwanda_geo import (
+    BUGESERA_SECTORS,
+    BUGESERA_SECTOR_CHOICES,
+    all_cell_choices,
+    all_village_choices,
+    cells_for_sector,
+    villages_for_cell,
+)
 
 DISTRICT_CHOICES = [
     ("", "Select District"),
@@ -124,14 +132,30 @@ class CreateTechnicianForm(FlaskForm):
     last_name = StringField("Last Name", validators=[DataRequired(), Length(min=1, max=75)])
     email = StringField("Email", validators=[DataRequired(), Email()])
     phone = StringField("Phone Number", validators=[Optional(), Length(max=20)])
-    district = SelectField("District", choices=DISTRICT_CHOICES, validators=[DataRequired()])
-    sector = StringField("Sector", validators=[Optional(), Length(max=100)])
-    cell = StringField("Cell", validators=[Optional(), Length(max=100)])
-    village = StringField("Village", validators=[Optional(), Length(max=100)])
+    district = SelectField("District", choices=[], validators=[DataRequired()])
+    sector = SelectField("Sector", choices=BUGESERA_SECTOR_CHOICES, validators=[Optional()])
+    cell = SelectField("Cell", choices=all_cell_choices(), validators=[Optional()])
+    village = SelectField("Village", choices=all_village_choices(), validators=[Optional()])
 
     def validate_email(self, email):
         if User.query.filter_by(email=email.data).first():
             raise ValidationError("Email already registered. Please use another.")
+
+    def validate(self, extra_validators=None):
+        ok = super().validate(extra_validators)
+        sector = self.sector.data
+        cell = self.cell.data
+        village = self.village.data
+        if sector and sector not in BUGESERA_SECTORS:
+            self.sector.errors.append("Select a sector from the list.")
+            ok = False
+        if sector and cell and cell not in cells_for_sector(sector):
+            self.cell.errors.append("That cell is not in the selected sector.")
+            ok = False
+        if sector and cell and village and village not in villages_for_cell(sector, cell):
+            self.village.errors.append("That village is not in the selected cell.")
+            ok = False
+        return ok
 
 
 class SetPasswordForm(FlaskForm):

@@ -1,4 +1,4 @@
-<form method="post" novalidate>
+<form method="post" novalidate id="createTechnicianForm">
     {{ form.hidden_tag() }}
     <div class="row">
         <div class="col-md-6 mb-3">
@@ -27,26 +27,77 @@
     <div class="row">
         <div class="col-md-6 mb-3">
             {{ form.district.label(class="form-label") }}
-            {{ form.district(class="form-select" + (" is-invalid" if form.district.errors else "")) }}
+            {{ form.district(class="form-select" + (" is-invalid" if form.district.errors else ""), id="tech-district") }}
             {% for error in form.district.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
         </div>
         <div class="col-md-6 mb-3">
             {{ form.sector.label(class="form-label") }}
-            {{ form.sector(class="form-control" + (" is-invalid" if form.sector.errors else "")) }}
+            {{ form.sector(class="form-select" + (" is-invalid" if form.sector.errors else ""), id="tech-sector") }}
             {% for error in form.sector.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
         </div>
     </div>
     <div class="row">
         <div class="col-md-6 mb-3">
             {{ form.cell.label(class="form-label") }}
-            {{ form.cell(class="form-control" + (" is-invalid" if form.cell.errors else "")) }}
+            {{ form.cell(class="form-select" + (" is-invalid" if form.cell.errors else ""), id="tech-cell") }}
             {% for error in form.cell.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
         </div>
         <div class="col-md-6 mb-3">
             {{ form.village.label(class="form-label") }}
-            {{ form.village(class="form-control" + (" is-invalid" if form.village.errors else "")) }}
+            {{ form.village(class="form-select" + (" is-invalid" if form.village.errors else ""), id="tech-village") }}
             {% for error in form.village.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
         </div>
     </div>
-    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Create Account &amp; Send Email</button>
 </form>
+
+<script type="application/json" id="amazi-geo-data">{{ geo_hierarchy | tojson }}</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var district = document.getElementById("tech-district");
+    var sector = document.getElementById("tech-sector");
+    var cell = document.getElementById("tech-cell");
+    var village = document.getElementById("tech-village");
+    if (!district || !sector || !cell || !village) return;
+    var geo = JSON.parse(document.getElementById("amazi-geo-data").textContent);
+
+    function fillOptions(select, values, placeholder, selected) {
+        select.innerHTML = "";
+        var opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = placeholder;
+        select.appendChild(opt);
+        values.forEach(function (value) {
+            var o = document.createElement("option");
+            o.value = value;
+            o.textContent = value;
+            if (value === selected) o.selected = true;
+            select.appendChild(o);
+        });
+    }
+
+    function sectorsFor(d) { return geo[d] ? Object.keys(geo[d]).sort() : []; }
+    function cellsFor(d, s) { return (geo[d] && geo[d][s]) ? Object.keys(geo[d][s]).sort() : []; }
+    function villagesFor(d, s, c) { return (geo[d] && geo[d][s] && geo[d][s][c]) ? geo[d][s][c].slice().sort() : []; }
+
+    function onDistrictChange() {
+        fillOptions(sector, sectorsFor(district.value), "Select Sector", null);
+        onSectorChange();
+    }
+    function onSectorChange() {
+        fillOptions(cell, cellsFor(district.value, sector.value), "Select Cell", null);
+        onCellChange();
+    }
+    function onCellChange() {
+        fillOptions(village, villagesFor(district.value, sector.value, cell.value), "Select Village", null);
+    }
+
+    district.addEventListener("change", onDistrictChange);
+    sector.addEventListener("change", onSectorChange);
+    cell.addEventListener("change", onCellChange);
+
+    fillOptions(sector, sectorsFor(district.value), "Select Sector", sector.value);
+    fillOptions(cell, cellsFor(district.value, sector.value), "Select Cell", cell.value);
+    fillOptions(village, villagesFor(district.value, sector.value, cell.value), "Select Village", village.value);
+});
+</script>

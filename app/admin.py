@@ -11,6 +11,7 @@ from app import db
 from app.forms import AdminApprovalForm, ChangeRoleForm, CreateTechnicianForm, SetPasswordForm
 from app.models import AuditLog, ReportLog, User, WaterPoint
 from app.report_export import build_excel_report, build_pdf_report
+from app.rwanda_geo import BUGESERA_SECTORS
 from app.utils import admin_required, utcnow
 
 admin_bp = Blueprint("admin", __name__)
@@ -23,6 +24,9 @@ def _district_choices():
     from app.dashboard import available_district_choices
 
     return available_district_choices()
+
+
+GEO_HIERARCHY = {"Bugesera": BUGESERA_SECTORS}
 
 
 def _parse_date(value):
@@ -195,6 +199,7 @@ def technicians():
         technicians=techs,
         form=create_form,
         create_modal_open=False,
+        geo_hierarchy=GEO_HIERARCHY,
     )
 
 
@@ -231,6 +236,7 @@ def create_technician():
                 technicians=User.query.filter_by(role="district_technician").order_by(User.created_at.desc()).all(),
                 form=form,
                 create_modal_open=True,
+                geo_hierarchy=GEO_HIERARCHY,
             )
 
         if email_error:
@@ -254,6 +260,7 @@ def create_technician():
         technicians=techs,
         form=form,
         create_modal_open=True,
+        geo_hierarchy=GEO_HIERARCHY,
     )
 
 
