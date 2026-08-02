@@ -15,19 +15,22 @@
   <a href="{{ url_for('admin.audit_logs') ~ '?' ~ ns.parts|join('&') }}" class="sort-link">{{ label }}{% if request.args.get('sort_by') == col %} {% if dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a>
 </th>
 {% endmacro %}
-<div class="content-panel">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-            <h1>Audit Logs</h1>
-            <p class="form-hint mb-0">System-wide record of administrative actions.</p>
-        </div>
+<div class="page-header">
+    <div>
+        <div class="page-scope">System</div>
+        <h1>Audit Logs</h1>
+        <p>System-wide record of administrative actions.</p>
+    </div>
+    <div class="header-actions">
         {{ export_buttons(url_for('admin.audit_logs_pdf', **request.args.to_dict()), url_for('admin.audit_logs_excel', **request.args.to_dict())) }}
     </div>
+</div>
 
-    <form method="get" class="filter-bar row g-2 align-items-end mb-3 mt-2">
+<div class="content-panel">
+    <form method="get" class="filter-bar mb-3">
         <div class="col-auto">
             <label class="form-label small mb-0">Action</label>
-            <input type="text" name="action" class="form-control form-select-sm" value="{{ filters.action or '' }}" placeholder="e.g. user_role_changed">
+            <input type="text" name="action" class="form-control form-control-sm" value="{{ filters.action or '' }}" placeholder="e.g. user_role_changed">
         </div>
         <div class="col-auto">
             <label class="form-label small mb-0">User</label>
@@ -54,7 +57,7 @@
 
     {% if logs.items %}
     <div class="table-responsive">
-        <table class="table align-middle">
+        <table class="table amazi-table align-middle mb-0">
             <thead>
             <tr>
                 {{ sort_th("Time", "time") }}

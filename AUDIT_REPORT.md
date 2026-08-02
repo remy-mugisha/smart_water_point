@@ -1,4 +1,4 @@
-# System Audit — Smart Water Point Monitoring System (Rwanda)
+# System Audit — Amazi (RWB Water Intelligence, Rwanda)
 **Date:** 2026-07-06 | **Branch:** main | **Scope:** Full codebase review prior to building the Reporting & Analytics module
 
 ---

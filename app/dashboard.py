@@ -1,8 +1,10 @@
+import json
+from datetime import datetime
 from pathlib import Path
 
 import joblib
 import pandas as pd
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import case, func
 from werkzeug.utils import secure_filename
@@ -10,12 +12,104 @@ from werkzeug.utils import secure_filename
 from app import db, ml_inference
 from app.forms import DISTRICT_CHOICES, DataUploadForm
 from app.ml_features import FEATURE_NAMES, build_feature_row
-from app.models import AuditLog, WaterPoint, WaterSource
+from app.models import AuditLog, MaintenanceTask, WaterPoint, WaterSource
 from app.services.water_point_service import find_matching_water_point
 from app.utils import allowed_file, role_required, scoped_by_district, utcnow
 
 dashboard_bp = Blueprint("dashboard", __name__)
 technician_bp = Blueprint("technician", __name__, url_prefix="/technician")
+
+
+def _model_metrics():
+    """Read the deployed model's training metrics (accuracy, ROC-AUC, feature
+    coefficients, last-trained time) or return None if no model exists."""
+    path = Path("models/training_metrics.json")
+    if not path.exists():
+        return None
+    try:
+        with path.open(encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:
+        return None
+
+
+def _catchment_pressures():
+    return dict(
+        db.session.query(WaterSource.catchment, func.sum(WaterSource.industrial_pressure_score))
+        .filter(WaterSource.catchment.isnot(None))
+        .group_by(WaterSource.catchment)
+        .all()
+    )
+
+
+def risk_factors_for(water_point):
+    """Explain a single water point's risk: which domain factors push it
+    toward failure and which pull it back, using the deployed model's
+    coefficients. Never presents the AI as a black box."""
+    metadata = ml_inference.model_metadata() or {}
+    metrics = _model_metrics() or {}
+    coefficients = metrics.get("coefficients") or {}
+    if not coefficients:
+        return []
+
+    catchment_pressure = 0.0
+    if water_point.water_source and water_point.water_source.catchment:
+        catchment_pressure = _catchment_pressures().get(water_point.water_source.catchment, 0.0)
+
+    features = build_feature_row(
+        year_installed=water_point.year_installed,
+        population_served=water_point.population_served,
+        monthly_rainfall=water_point.monthly_rainfall,
+        technology_type=water_point.technology_type,
+        catchment_pressure=catchment_pressure,
+        metadata=metadata,
+    )
+
+    def _human(name, value):
+        if name == "age":
+            return f"{int(value)} years"
+        if name == "population_served":
+            return f"{int(value):,} people"
+        if name == "monthly_rainfall":
+            return f"{value:.0f} mm"
+        if name == "tech_encoded":
+            return water_point.technology_type or "Unknown"
+        if name == "catchment_pressure":
+            return f"{value:.1f}"
+        if name == "rainy_season_flag":
+            return "Yes" if value else "No"
+        if name == "population_density_category":
+            return ("Low", "Medium", "High")[int(value)] if 0 <= int(value) <= 2 else "Unknown"
+        return f"{value:.2f}"
+
+    def _label(name):
+        return {
+            "age": "Infrastructure age",
+            "population_served": "Population served",
+            "monthly_rainfall": "Monthly rainfall",
+            "tech_encoded": "Technology type",
+            "catchment_pressure": "Catchment pressure",
+            "rainy_season_flag": "Rainy season",
+            "population_density_category": "Population density",
+        }.get(name, name.replace("_", " ").title())
+
+    factors = []
+    for name in ("age", "population_served", "monthly_rainfall", "tech_encoded",
+                 "catchment_pressure", "rainy_season_flag", "population_density_category"):
+        coefficient = coefficients.get(name)
+        if coefficient is None:
+            continue
+        contribution = float(coefficient) * float(features.get(name, 0.0))
+        factors.append({
+            "name": _label(name),
+            "value": _human(name, features.get(name, 0.0)),
+            "contribution": contribution,
+            "direction": "up" if contribution > 0 else ("down" if contribution < 0 else "flat"),
+            "weight": abs(contribution),
+        })
+
+    factors.sort(key=lambda f: f["weight"], reverse=True)
+    return factors[:5]
 
 
 def _index_context():
@@ -25,13 +119,74 @@ def _index_context():
         .group_by(WaterPoint.current_status)
         .all()
     )
+    total = sum(counts.values())
+    functional = counts.get("Functional", 0)
+
+    points = scoped_water_points().all()
+    high_risk = [wp for wp in points if wp.current_status in ("At Risk", "Non-Functional")]
+    high_risk.sort(key=lambda wp: wp.risk_probability or 0.0, reverse=True)
+
+    task_query = MaintenanceTask.query
+    if current_user.role == "district_technician":
+        task_query = task_query.filter_by(assigned_to_id=current_user.id)
+    elif current_user.role != "admin":
+        task_query = task_query.join(WaterPoint).filter(WaterPoint.district == current_user.district)
+    recent_tasks = task_query.order_by(MaintenanceTask.created_at.desc()).limit(5).all()
+
+    district_rows = {
+        (district, status): count
+        for district, status, count in (
+            scoped_water_points()
+            .with_entities(WaterPoint.district, WaterPoint.current_status, func.count(WaterPoint.id))
+            .group_by(WaterPoint.district, WaterPoint.current_status)
+            .all()
+        )
+    }
+    districts = {}
+    for (district, status), count in district_rows.items():
+        row = districts.setdefault(district, {"total": 0, "Functional": 0, "At Risk": 0,
+                                              "Non-Functional": 0, "Under Repair": 0})
+        row["total"] += count
+        row[status] += count
+    district_health = [
+        {
+            "name": name,
+            "total": row["total"],
+            "healthy": row["Functional"],
+            "at_risk": row["At Risk"] + row["Non-Functional"],
+            "health_pct": round(row["Functional"] / row["total"] * 100) if row["total"] else 0,
+        }
+        for name, row in sorted(districts.items(), key=lambda kv: kv[1]["Functional"] / kv[1]["total"] if kv[1]["total"] else 1)
+    ]
+
+    metrics = _model_metrics()
+    last_prediction = (
+        db.session.query(func.max(WaterPoint.last_prediction_date)).scalar()
+    )
+
+    if current_user.role == "admin":
+        from app.settings import get_setting
+
+        district_scope = get_setting("default_district") or "Bugesera"
+    else:
+        district_scope = current_user.district or "Bugesera"
+
     return {
-        "water_points": scoped_water_points().all(),
-        "total": sum(counts.values()),
+        "water_points": points,
+        "recent_water_points": sorted(points, key=lambda wp: wp.last_updated or datetime.min, reverse=True)[:8],
+        "high_risk_points": high_risk[:5],
+        "recent_tasks": recent_tasks,
+        "district_health": district_health,
+        "district_scope": district_scope,
+        "total": total,
         "at_risk": counts.get("At Risk", 0),
-        "functional": counts.get("Functional", 0),
+        "functional": functional,
         "non_functional": counts.get("Non-Functional", 0),
         "under_repair": counts.get("Under Repair", 0),
+        "health_pct": round(functional / total * 100) if total else 0,
+        "model_available": ml_inference.is_model_available(),
+        "model_metrics": metrics,
+        "last_prediction": last_prediction,
     }
 
 
@@ -50,8 +205,83 @@ def dashboard():
 @dashboard_bp.route("/map")
 @login_required
 def map_view():
-    points = WaterPoint.query.filter_by(district="Bugesera").all()
-    return render_template("dashboard/map.html", water_points=points)
+    points = scoped_water_points().all()
+    districts = sorted({wp.district for wp in points})
+    return render_template(
+        "dashboard/map.html",
+        water_points=points,
+        districts=districts,
+        model_available=ml_inference.is_model_available(),
+    )
+
+
+@dashboard_bp.route("/districts")
+@login_required
+@role_required("admin", "district_manager")
+def districts():
+    rows = (
+        scoped_water_points()
+        .with_entities(WaterPoint.district, WaterPoint.sector, WaterPoint.current_status, func.count(WaterPoint.id))
+        .group_by(WaterPoint.district, WaterPoint.sector, WaterPoint.current_status)
+        .all()
+    )
+    agg = {}
+    for district, sector, status, count in rows:
+        key = (district, sector or "—")
+        bucket = agg.setdefault(
+            key,
+            {"district": district, "sector": sector or "—", "total": 0,
+             "Functional": 0, "At Risk": 0, "Non-Functional": 0, "Under Repair": 0},
+        )
+        bucket["total"] += count
+        bucket[status] += count
+
+    districts = {}
+    for (district, sector), bucket in agg.items():
+        d = districts.setdefault(
+            district,
+            {"name": district, "total": 0, "Functional": 0, "At Risk": 0,
+             "Non-Functional": 0, "Under Repair": 0, "sectors": []},
+        )
+        d["total"] += bucket["total"]
+        for status in ("Functional", "At Risk", "Non-Functional", "Under Repair"):
+            d[status] += bucket[status]
+        bucket["risk_pct"] = round((bucket["At Risk"] + bucket["Non-Functional"]) / bucket["total"] * 100) if bucket["total"] else 0
+        d["sectors"].append(bucket)
+
+    for d in districts.values():
+        d["sectors"].sort(key=lambda s: s["risk_pct"], reverse=True)
+        d["health_pct"] = round(d["Functional"] / d["total"] * 100) if d["total"] else 0
+        d["risk_pct"] = round((d["At Risk"] + d["Non-Functional"]) / d["total"] * 100) if d["total"] else 0
+
+    district_list = sorted(districts.values(), key=lambda d: d["risk_pct"], reverse=True)
+    return render_template("dashboard/districts.html", districts=district_list)
+
+
+@dashboard_bp.route("/water-points/<int:wp_id>")
+@login_required
+def water_point_detail(wp_id):
+    water_point = db.session.get(WaterPoint, wp_id)
+    if water_point is None:
+        abort(404)
+    if current_user.role != "admin" and current_user.district != water_point.district:
+        abort(403)
+
+    tasks = (
+        MaintenanceTask.query.filter_by(water_point_id=water_point.id)
+        .order_by(MaintenanceTask.created_at.desc())
+        .all()
+    )
+    factors = risk_factors_for(water_point)
+    risk_pct = round((water_point.risk_probability or 0) * 100)
+
+    return render_template(
+        "dashboard/water_point_detail.html",
+        wp=water_point,
+        tasks=tasks,
+        factors=factors,
+        risk_pct=risk_pct,
+    )
 
 
 @dashboard_bp.route("/water-points")
@@ -131,9 +361,15 @@ def predict():
             "probability": round(prediction.probability * 100, 1),
             "confidence": prediction.confidence,
             "threshold": threshold,
+            "factors": risk_factors_for(selected),
         }
 
-    return render_template("dashboard/predict.html", water_points=points, result=result)
+    return render_template(
+        "dashboard/predict.html",
+        water_points=points,
+        result=result,
+        model_available=ml_inference.is_model_available(),
+    )
 
 
 @dashboard_bp.route("/rerun-predictions", methods=["POST"])
@@ -218,9 +454,22 @@ def scoped_water_points():
 
 
 def available_district_choices():
+    """Districts offered in upload/filter dropdowns.
+
+    Amazi is scoped to a single district (Bugesera by default), so once any
+    data is loaded the dropdowns list only the districts actually present in
+    the database. Before any data exists the known districts are offered so a
+    fresh install (and the settings tests) can still pick a default district.
+    """
     if current_user.role == "admin":
         existing = [d[0] for d in db.session.query(WaterPoint.district).distinct() if d[0]]
-        districts = sorted(set(existing + [choice[0] for choice in DISTRICT_CHOICES if choice[0]]))
+        if existing:
+            return [("", "Select District")] + [(district, district) for district in sorted(existing)]
+
+        from app.settings import get_setting
+
+        default_district = get_setting("default_district") or "Bugesera"
+        districts = sorted(set([default_district] + [choice[0] for choice in DISTRICT_CHOICES if choice[0]]))
         return [("", "Select District")] + [(district, district) for district in districts]
     return [(current_user.district, current_user.district)]
 

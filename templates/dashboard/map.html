@@ -1,19 +1,70 @@
 {% extends "base.html" %}
-{% block title %}Map{% endblock %}
+{% block title %}GIS Map · Amazi{% endblock %}
+{% block extra_css %}
+<style>
+    .map-frame { height: calc(100vh - 92px); min-height: 560px; }
+    #map { height: 100%; }
+    .marker-cluster-amazi {
+        background: var(--res-600);
+        border: 2px solid #fff;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: 0.78rem;
+        box-shadow: 0 1px 6px rgba(4,41,46,.45);
+    }
+    .marker-cluster-amazi.is-risk { background: var(--risk-600); }
+    .marker-cluster-amazi.is-crit { background: var(--crit-600); }
+</style>
+{% endblock %}
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>Water Point Map</h1>
-        <p>Bugesera District water points.</p>
+<div class="map-frame">
+    <div id="map" role="application" aria-label="GIS map of water points"></div>
+
+    <div class="map-filter-bar" role="search">
+        <input type="search" id="map-search" class="form-control" placeholder="Search water point…" aria-label="Search water points on map">
+        <select id="map-status" class="form-select" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option>Functional</option>
+            <option>At Risk</option>
+            <option>Non-Functional</option>
+            <option>Under Repair</option>
+        </select>
+        <select id="map-district" class="form-select" aria-label="Filter by district">
+            <option value="">All districts</option>
+            {% for d in districts %}<option>{{ d }}</option>{% endfor %}
+        </select>
+        <button type="button" class="btn btn-outline-secondary" id="map-reset">Reset</button>
     </div>
-</div>
-<div id="map"></div>
-<div class="content-panel mt-3" style="max-width: 1180px; margin-inline: auto;">
-    <strong>Legend:</strong>
-    <span class="badge status-functional ms-2">Functional</span>
-    <span class="badge status-at-risk ms-1">At Risk</span>
-    <span class="badge status-non-functional ms-1">Non-Functional</span>
-    <span class="badge status-under-repair ms-1">Under Repair</span>
+
+    <div class="map-tools">
+        <button type="button" class="map-tool-btn" id="map-layers-toggle" aria-expanded="false" aria-controls="map-layers" aria-label="Toggle layers">
+            <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="map-tool-btn" id="map-recenter" aria-label="Recenter map" title="Recenter">
+            <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    <div class="map-layer-panel" id="map-layers">
+        <div class="kicker" style="margin-bottom:.4rem">Layers</div>
+        <label class="layer-row"><input type="checkbox" id="layer-points" checked> Water points</label>
+        <label class="layer-row"><input type="checkbox" id="layer-footprints"> District footprints</label>
+        <label class="layer-row"><input type="checkbox" id="layer-rainfall"> Rainfall (mm/mo)</label>
+    </div>
+
+    <div class="map-legend" aria-label="Map legend">
+        <div class="kicker" style="margin-bottom:.5rem">Status</div>
+        <div style="display:grid;gap:.3rem;font-size:.75rem">
+            <div><span class="amazi-legend-dot" style="--dot:var(--safe-600)"></span> Functional</div>
+            <div><span class="amazi-legend-dot" style="--dot:var(--risk-600)"></span> At Risk</div>
+            <div><span class="amazi-legend-dot" style="--dot:var(--crit-600)"></span> Non-Functional</div>
+            <div><span class="amazi-legend-dot" style="--dot:var(--steel-500)"></span> Under Repair</div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 {% block extra_js %}
@@ -21,16 +72,21 @@
 const points = [
     {% for wp in water_points %}
     {
-        id: {{ wp.water_point_id|tojson }},
+        id: {{ wp.id }},
+        uid: {{ wp.water_point_id|tojson }},
         lat: {{ wp.latitude }},
         lng: {{ wp.longitude }},
         status: {{ wp.current_status|tojson }},
         technology: {{ wp.technology_type|tojson }},
-        risk: {{ (wp.risk_probability or 0)|round(2) }},
-        confidence: {{ (wp.prediction_confidence or "-")|tojson }}
+        district: {{ wp.district|tojson }},
+        rainfall: {{ wp.monthly_rainfall if wp.monthly_rainfall is not none else 'null' }},
+        risk: {{ (wp.risk_probability or 0)|round(3) }},
+        confidence: {{ (wp.prediction_confidence or "")|tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
+{% set focus_arg = request.args.get('wp') %}
+const focusId = {{ (focus_arg|int if focus_arg and focus_arg|int else 0) }};
 </script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

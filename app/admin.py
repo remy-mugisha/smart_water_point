@@ -1,6 +1,8 @@
 ﻿from datetime import datetime
+from pathlib import Path
 
 import bcrypt
+import json
 from flask import Blueprint, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy.orm import joinedload
@@ -12,6 +14,15 @@ from app.report_export import build_excel_report, build_pdf_report
 from app.utils import admin_required, utcnow
 
 admin_bp = Blueprint("admin", __name__)
+
+
+def _district_choices():
+    """District options for the technician form — Amazi is scoped to the
+    districts present in the data (Bugesera), with the same fallback the
+    upload form uses before any data is loaded."""
+    from app.dashboard import available_district_choices
+
+    return available_district_choices()
 
 
 def _parse_date(value):
@@ -177,14 +188,27 @@ def reset_password(user_id):
 @admin_required
 def technicians():
     techs = User.query.filter_by(role="district_technician").order_by(User.created_at.desc()).all()
-    return render_template("admin/technicians.html", technicians=techs)
+    create_form = CreateTechnicianForm()
+    create_form.district.choices = _district_choices()
+    return render_template(
+        "admin/technicians.html",
+        technicians=techs,
+        form=create_form,
+        create_modal_open=False,
+    )
 
 
 @admin_bp.route("/technicians/create", methods=["GET", "POST"])
 @login_required
 @admin_required
 def create_technician():
+    """Create a technician from the overlay dialog on the technicians page.
+
+    POST success redirects to the list; GET and invalid POST render the list
+    page again with the dialog open so field errors stay in context.
+    """
     form = CreateTechnicianForm()
+    form.district.choices = _district_choices()
     if form.validate_on_submit():
         from app.services.technician_service import create_technician
 
@@ -202,7 +226,12 @@ def create_technician():
 
         if user is None:
             flash(temp_password, "danger")
-            return render_template("admin/create_technician.html", form=form)
+            return render_template(
+                "admin/technicians.html",
+                technicians=User.query.filter_by(role="district_technician").order_by(User.created_at.desc()).all(),
+                form=form,
+                create_modal_open=True,
+            )
 
         if email_error:
             flash(
@@ -219,7 +248,13 @@ def create_technician():
 
         return redirect(url_for("admin.technicians"))
 
-    return render_template("admin/create_technician.html", form=form)
+    techs = User.query.filter_by(role="district_technician").order_by(User.created_at.desc()).all()
+    return render_template(
+        "admin/technicians.html",
+        technicians=techs,
+        form=form,
+        create_modal_open=True,
+    )
 
 
 @admin_bp.route("/technicians/<int:user_id>/resend-credentials", methods=["POST"])
@@ -234,6 +269,37 @@ def resend_credentials(user_id):
     else:
         flash(f"New credentials have been sent to {user.email}.", "success")
     return redirect(url_for("admin.technicians"))
+
+
+@admin_bp.route("/model-performance")
+@login_required
+@admin_required
+def model_performance():
+    metrics = None
+    path = Path("models/training_metrics.json")
+    if path.exists():
+        try:
+            metrics = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            metrics = None
+
+    from app.ml_inference import is_model_available, model_metadata
+    from app.settings import all_settings, get_setting
+
+    coefficients = sorted(
+        (metrics or {}).get("coefficients", {}).items(),
+        key=lambda kv: abs(kv[1]),
+        reverse=True,
+    )
+    return render_template(
+        "admin/model_performance.html",
+        model_available=is_model_available(),
+        metadata=model_metadata(),
+        metrics=metrics,
+        coefficients=coefficients,
+        settings=all_settings(),
+        risk_threshold=get_setting("risk_threshold", 0.5),
+    )
 
 
 @admin_bp.route("/audit-logs")

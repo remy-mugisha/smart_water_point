@@ -1,4 +1,4 @@
-# Smart Water Point Monitoring System — System Explanation
+# Amazi — RWB Water Intelligence — System Explanation
 
 **Case Study:** Bugesera District, Rwanda (generalizes to 5 districts: Nyagatare, Bugesera, Gatsibo, Kayonza, Rwamagana)
 **Audience:** WASAC technicians and district water officers

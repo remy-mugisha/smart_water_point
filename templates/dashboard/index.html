@@ -1,22 +1,209 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard · Amazi{% endblock %}
 {% block content %}
+{% set t = total or 1 %}
+{% set f_pct = (functional / t * 100)|round(1) %}
+{% set a_end = ((functional + at_risk) / t * 100)|round(1) %}
+{% set n_end = ((functional + at_risk + non_functional) / t * 100)|round(1) %}
+{% set is_tech = current_user.role == 'district_technician' %}
+
 <div class="page-header">
     <div>
-        <h1>Water Point Dashboard</h1>
-        <p>{{ current_user.district if current_user.role != 'admin' else 'All districts' }}</p>
+        <div class="page-scope">{{ 'Today\'s work' if is_tech else (district_scope if current_user.role == 'admin' else current_user.district) }}</div>
+        <h1>{{ 'Field Operations' if is_tech else 'Water Point Dashboard' }}</h1>
+        <p>{{ 'Your assigned maintenance, ranked by what needs you first.' if is_tech else 'District infrastructure health, AI prediction status, and where to act next.' }}</p>
     </div>
-    <a class="btn btn-primary" href="{{ url_for('dashboard.map_view') }}"><i class="fa-solid fa-map"></i> Map View</a>
+    <div class="header-actions">
+        <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.water_points') }}"><i class="fa-solid fa-droplet" aria-hidden="true"></i> Water Points</a>
+        <a class="btn btn-primary" href="{{ url_for('dashboard.map_view') }}"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i> Open GIS Map</a>
+    </div>
 </div>
-<div class="stats-grid">
-    <div class="stat-card"><span>Total</span><strong>{{ total }}</strong></div>
-    <div class="stat-card"><span>Functional</span><strong>{{ functional }}</strong></div>
-    <div class="stat-card"><span>At Risk</span><strong>{{ at_risk }}</strong></div>
-    <div class="stat-card"><span>Non-Functional</span><strong>{{ non_functional }}</strong></div>
-    <div class="stat-card"><span>Under Repair</span><strong>{{ under_repair }}</strong></div>
+
+<!-- ══ The Amazi Reservoir — signature element ══ -->
+<section class="reservoir-hero" aria-label="Infrastructure health overview">
+    <div class="reservoir-grid">
+
+        <div class="reservoir-dial-wrap">
+            <div class="reservoir-ring" role="img"
+                 aria-label="Reservoir gauge: {{ health_pct }}% of monitored water points are functional. Functional {{ functional }}, at risk {{ at_risk }}, non-functional {{ non_functional }}, under repair {{ under_repair }}.">
+                <div class="ring-core" {% if total %}style="background: conic-gradient(var(--safe-600) 0% {{ f_pct }}%, var(--risk-600) {{ f_pct }}% {{ a_end }}%, var(--crit-600) {{ a_end }}% {{ n_end }}%, var(--steel-500) {{ n_end }}% 100%);"{% endif %}>
+                    <div class="ring-water" style="height: {{ health_pct }}%;"></div>
+                </div>
+                <div class="ring-tick" aria-hidden="true"></div>
+                <span class="ripple r1" aria-hidden="true"></span>
+                <span class="ripple r2" aria-hidden="true"></span>
+                <div class="ring-center">
+                    <div>
+                        <div class="ring-value">{{ health_pct }}<span style="font-size:1.1rem">%</span></div>
+                        <span class="ring-unit">Healthy</span>
+                    </div>
+                </div>
+            </div>
+            <div class="reservoir-readout" role="status">Health {{ health_pct }}% · {{ total }} monitored</div>
+        </div>
+
+        <div class="riverline-wrap">
+            <div class="kicker" style="margin-bottom:.3rem">Status distribution</div>
+            <div class="riverline">
+                {% if total %}
+                {% if functional %}<div class="riv-seg riv-functional" style="width: {{ functional / t * 100 }}%"><span class="riv-label">Functional<small>{{ functional }}</small></span></div>{% endif %}
+                {% if at_risk %}<div class="riv-seg riv-at-risk" style="width: {{ at_risk / t * 100 }}%"><span class="riv-label">At Risk<small>{{ at_risk }}</small></span></div>{% endif %}
+                {% if non_functional %}<div class="riv-seg riv-non-functional" style="width: {{ non_functional / t * 100 }}%"><span class="riv-label">Non-Functional<small>{{ non_functional }}</small></span></div>{% endif %}
+                {% if under_repair %}<div class="riv-seg riv-under-repair" style="width: {{ under_repair / t * 100 }}%"><span class="riv-label">Under Repair<small>{{ under_repair }}</small></span></div>{% endif %}
+                {% else %}
+                <div class="riv-seg riv-functional" style="width:100%"><span class="riv-label">No data yet</span></div>
+                {% endif %}
+            </div>
+            <div class="tributaries" aria-label="District health">
+                {% for d in district_health[:5] %}
+                <span class="tributary">
+                    <span class="trib-bar" style="width: {{ d.health_pct / 100 * 34 }}px; background: {{ 'var(--safe-600)' if d.health_pct >= 60 else 'var(--risk-500)' }};"></span>
+                    {{ d.name }} <span class="trib-count">{{ d.health_pct }}%</span>
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="ai-watch">
+            <div class="kicker" style="margin-bottom:.2rem">AI Watch</div>
+            {% if model_available %}
+            <div class="ai-row"><span class="ai-k"><span class="ai-dot" aria-hidden="true"></span>Model</span><span class="ai-v">Online</span></div>
+            {% if model_metrics %}
+            <div class="ai-row"><span class="ai-k">Accuracy</span><span class="ai-v">{{ '%.1f'|format(model_metrics.get('accuracy', 0) * 100) }}%</span></div>
+            <div class="ai-row"><span class="ai-k">ROC-AUC</span><span class="ai-v">{{ '%.2f'|format(model_metrics.get('roc_auc', 0) or 0) }}</span></div>
+            {% endif %}
+            <div class="ai-row"><span class="ai-k">Last run</span><span class="ai-v">{{ last_prediction.strftime('%Y-%m-%d') if last_prediction else '—' }}</span></div>
+            {% else %}
+            <div class="ai-row"><span class="ai-k"><span class="ai-dot is-off" aria-hidden="true"></span>Model</span><span class="ai-v">Offline</span></div>
+            <div class="ai-row" style="font-size:.75rem"><span class="ai-k" style="color:var(--risk-700)">Train via <span class="mono">flask train-model</span></span></div>
+            {% endif %}
+        </div>
+
+    </div>
+</section>
+
+<!-- KPI row -->
+<div class="kpi-row">
+    <div class="kpi-tile">
+        <span class="icon-tile tile-md tile-safe"><i class="fa-solid fa-droplet" aria-hidden="true"></i></span>
+        <div><div class="kpi-label">Functional</div><div class="kpi-value">{{ functional }}</div></div>
+    </div>
+    <div class="kpi-tile">
+        <span class="icon-tile tile-md tile-risk"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span>
+        <div><div class="kpi-label">At Risk</div><div class="kpi-value">{{ at_risk }}</div></div>
+    </div>
+    <div class="kpi-tile">
+        <span class="icon-tile tile-md tile-crit"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i></span>
+        <div><div class="kpi-label">Non-Functional</div><div class="kpi-value">{{ non_functional }}</div></div>
+    </div>
+    <div class="kpi-tile">
+        <span class="icon-tile tile-md tile-steel"><i class="fa-solid fa-wrench" aria-hidden="true"></i></span>
+        <div><div class="kpi-label">Under Repair</div><div class="kpi-value">{{ under_repair }}</div></div>
+    </div>
 </div>
-<div class="content-panel">
-    <h2>Recent Water Points</h2>
-    {% include "dashboard/_water_points_table.html" %}
+
+<div class="dash-grid">
+    <!-- Highest risk now -->
+    <div class="content-panel">
+        <div class="panel-header">
+            <div>
+                <div class="kicker">Prediction center</div>
+                <h2 class="panel-title">Highest Risk Now</h2>
+            </div>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.predict') }}">Run a prediction</a>
+        </div>
+        {% if high_risk_points %}
+        <ul class="risk-list">
+            {% for wp in high_risk_points %}
+            <li>
+                <a class="risk-item" href="{{ url_for('dashboard.water_point_detail', wp_id=wp.id) }}">
+                    <span class="risk-rank">{{ loop.index }}</span>
+                    <span class="icon-tile tile-sm tile-{{ 'crit' if wp.current_status == 'Non-Functional' else 'risk' }}">
+                        <i class="fa-solid fa-droplet" aria-hidden="true"></i>
+                    </span>
+                    <span class="risk-meta">
+                        <span class="risk-name">{{ wp.water_point_id }}</span>
+                        <span class="risk-sub">{{ wp.technology_type }} · {{ wp.district }}{% if wp.sector and not wp.sector.startswith('Sector-') %} · {{ wp.sector }}{% endif %}</span>
+                    </span>
+                    <span class="risk-pct {{ 'is-high' if (wp.risk_probability or 0) >= 0.66 else 'is-mid' }}">{{ '%.0f'|format((wp.risk_probability or 0) * 100) }}%</span>
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-state">No water points currently at risk in this catchment.</p>
+        {% endif %}
+    </div>
+
+    <!-- District pulse -->
+    <div class="content-panel">
+        <div class="panel-header">
+            <div>
+                <div class="kicker">Administration</div>
+                <h2 class="panel-title">District Pulse</h2>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.districts') }}">View all</a>
+        </div>
+        {% if district_health %}
+        <ul class="risk-list">
+            {% for d in district_health %}
+            <li class="risk-item" style="cursor:default">
+                <span class="risk-meta">
+                    <span class="risk-name">{{ d.name }}</span>
+                    <span class="risk-sub">{{ d.total }} points · {{ d.at_risk }} at risk</span>
+                    <div class="risk-bar"><span style="width: {{ d.health_pct }}%; background: {{ 'var(--safe-600)' if d.health_pct >= 60 else 'var(--risk-500)' }};"></span></div>
+                </span>
+                <span class="risk-pct {{ 'is-mid' if d.health_pct < 60 }}">{{ d.health_pct }}%</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-state">No district data yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="dash-grid">
+    <!-- Today's tasks -->
+    <div class="content-panel">
+        <div class="panel-header">
+            <div>
+                <div class="kicker">{{ 'Field queue' if is_tech else 'Operations' }}</div>
+                <h2 class="panel-title">{{ 'Your Tasks' if is_tech else 'Recent Maintenance' }}</h2>
+            </div>
+            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('tasks.list_tasks') }}">All tasks</a>
+        </div>
+        {% if recent_tasks %}
+        {% for task in recent_tasks %}
+        <a class="task-row" href="{{ url_for('tasks.task_detail', task_id=task.id) }}">
+            <span class="icon-tile tile-sm tile-steel">
+                <i class="fa-solid fa-{{ 'wrench' if task.priority in ('high','critical') else 'clock' }}" aria-hidden="true"></i>
+            </span>
+            <span class="task-main">
+                <span class="task-title">{{ task.title }}</span>
+                <span class="task-sub">{{ task.water_point.water_point_id }} · {{ task.water_point.district }} · {{ task.technician.full_name if task.technician else 'Unassigned' }}</span>
+            </span>
+            <span class="chip chip-{{ {'pending':'pending','assigned':'info','accepted':'info','in_progress':'at-risk','completed':'functional','verified':'functional'}.get(task.status, 'pending') }}">
+                <span class="chip-dot {{ 'is-filled' if task.status in ('completed','verified','in_progress') }}"></span>
+                {{ task.status.replace('_', ' ')|title }}
+            </span>
+        </a>
+        {% endfor %}
+        {% else %}
+        <p class="empty-state">No maintenance tasks yet.</p>
+        {% endif %}
+    </div>
+
+    <!-- Recently updated -->
+    <div class="content-panel">
+        <div class="panel-header">
+            <div>
+                <div class="kicker">Registry</div>
+                <h2 class="panel-title">Recently Updated</h2>
+            </div>
+        </div>
+        {% set water_points = recent_water_points %}
+        {% include "dashboard/_water_points_table.html" %}
+    </div>
 </div>
 {% endblock %}

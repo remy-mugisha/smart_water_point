@@ -1,8 +1,4 @@
-{% extends "base.html" %}
-{% block title %}Sign In · Amazi{% endblock %}
-{% block body_class %}auth-page{% endblock %}
-{% block navbar %}{% endblock %}
-{% block main_wrapper %}
+{% macro auth_shell(kicker, heading, sub) -%}
 <div class="auth-shell">
     <div class="auth-visual">
         <a class="brand" href="{{ url_for('home') }}">
@@ -40,8 +36,8 @@
             </div>
 
             <div class="auth-heading">
-                <div class="kicker">Sign in</div>
-                <h1>Water Intelligence Platform</h1>
+                <div class="kicker">{{ kicker }}</div>
+                <h1>{{ heading }}</h1>
             </div>
 
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -55,26 +51,8 @@
                 {% endif %}
             {% endwith %}
 
-            <form method="post" novalidate>
-                {{ form.hidden_tag() }}
-                <div class="mb-3">
-                    {{ form.email.label(class="form-label") }}
-                    {{ form.email(class="form-control", placeholder="you@example.rw", type="email", autocomplete="email") }}
-                </div>
-                <div class="mb-3">
-                    {{ form.password.label(class="form-label") }}
-                    {{ form.password(class="form-control", placeholder="Enter your password", autocomplete="current-password") }}
-                </div>
-                <div class="form-check mb-4">
-                    {{ form.remember(class="form-check-input") }}
-                    {{ form.remember.label(class="form-check-label", style="font-size:.85rem;color:var(--color-muted)") }}
-                </div>
-                <button class="btn btn-primary w-100" type="submit">Sign In</button>
-            </form>
-            <p class="form-hint mt-4 mb-0" style="font-size:.8rem;text-align:center">
-                Accounts are created by administrators. Contact your system admin for access.
-            </p>
+            {{ caller() }}
         </div>
     </div>
 </div>
-{% endblock %}
+{%- endmacro %}

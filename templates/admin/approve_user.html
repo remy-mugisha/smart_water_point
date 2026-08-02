@@ -1,14 +1,51 @@
 {% extends "base.html" %}
-{% block title %}Approve User{% endblock %}
+{% block title %}Review {{ user.full_name }} · Amazi{% endblock %}
 {% block content %}
-<div class="content-panel">
-    <h1>Review {{ user.full_name }}</h1>
-    <p>{{ user.email }} / {{ user.role }} / {{ user.district }}</p>
-    <form method="post">
-        {{ form.hidden_tag() }}
-        <div class="mb-3">{{ form.action.label(class="form-label") }}{{ form.action(class="form-select") }}</div>
-        <div class="mb-3">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control", rows="3") }}</div>
-        <button class="btn btn-primary" type="submit">Submit Decision</button>
-    </form>
+<div class="page-header">
+    <div>
+        <div class="page-scope">System</div>
+        <h1>Review {{ user.full_name }}</h1>
+        <p>Approve or reject a pending account request.</p>
+    </div>
+    <div class="header-actions">
+        <a class="btn btn-ghost" href="{{ url_for('admin.users') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to Users</a>
+    </div>
+</div>
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="content-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Applicant</div>
+                    <h2 class="panel-title">{{ user.full_name }}</h2>
+                </div>
+                <span class="icon-tile tile-md"><i class="fa-solid fa-user" aria-hidden="true"></i></span>
+            </div>
+            <ul class="telemetry">
+                <li><span class="t-k">Email</span><span class="t-v">{{ user.email }}</span></li>
+                <li><span class="t-k">Username</span><span class="t-v">{{ user.username }}</span></li>
+                <li><span class="t-k">Role</span><span class="t-v">{{ user.role|replace('_', ' ')|title }}</span></li>
+                <li><span class="t-k">District</span><span class="t-v">{{ user.district or "-" }}</span></li>
+                <li><span class="t-k">Requested</span><span class="t-v">{{ user.created_at.strftime("%Y-%m-%d") if user.created_at else "-" }}</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="content-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Decision</div>
+                    <h2 class="panel-title">Approve or reject</h2>
+                </div>
+                <span class="icon-tile tile-md"><i class="fa-solid fa-user-check" aria-hidden="true"></i></span>
+            </div>
+            <form method="post">
+                {{ form.hidden_tag() }}
+                <div class="mb-3">{{ form.action.label(class="form-label") }}{{ form.action(class="form-select") }}</div>
+                <div class="mb-4">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control", rows="3") }}</div>
+                <button class="btn btn-primary" type="submit"><i class="fa-solid fa-shield-check" aria-hidden="true"></i> Submit Decision</button>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

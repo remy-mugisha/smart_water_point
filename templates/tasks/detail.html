@@ -1,58 +1,80 @@
 {% extends "base.html" %}
-{% block title %}{{ task.title }}{% endblock %}
+{% block title %}{{ task.title }} · Amazi{% endblock %}
 {% block content %}
-{% set status_colors = {'pending':'secondary','assigned':'info','accepted':'primary','in_progress':'warning','completed':'success','verified':'dark'} %}
-{% set priority_colors = {'low':'secondary','medium':'info','high':'warning','critical':'danger'} %}
+{% set status_chip = {'pending':'chip-pending','assigned':'chip-assigned','accepted':'chip-accepted','in_progress':'chip-in-progress','completed':'chip-completed','verified':'chip-verified'} %}
+{% set priority_chip = {'low':'chip-low','medium':'chip-medium','high':'chip-high','critical':'chip-critical'} %}
 <div class="page-header">
     <div>
+        <div class="page-scope">Operations</div>
         <h1>{{ task.title }}</h1>
-        <p>{{ task.water_point.water_point_id }} — {{ task.water_point.district }}{% if task.water_point.sector %}, {{ task.water_point.sector }}{% endif %}</p>
+        <p><a class="link-muted" href="{{ url_for('dashboard.water_point_detail', wp_id=task.water_point.id) }}">{{ task.water_point.water_point_id }}</a> — {{ task.water_point.district }}{% if task.water_point.sector %}, {{ task.water_point.sector }}{% endif %}</p>
     </div>
-    <a class="btn btn-outline-secondary" href="{{ url_for('tasks.list_tasks') }}">Back to Tasks</a>
+    <div class="header-actions">
+        <a class="btn btn-ghost" href="{{ url_for('tasks.list_tasks') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to Tasks</a>
+    </div>
 </div>
 
-<div class="row">
+<div class="row g-4">
     <div class="col-lg-7">
-        <div class="content-panel mb-3">
-            <h2>Details</h2>
-            <p><span class="badge bg-{{ status_colors.get(task.status, 'secondary') }}">{{ task.status.replace('_', ' ')|title }}</span>
-               <span class="badge bg-{{ priority_colors.get(task.priority, 'secondary') }}">{{ task.priority|capitalize }} priority</span></p>
-            {% if task.description %}<p>{{ task.description }}</p>{% endif %}
-            <p><strong>Created by:</strong> {{ task.creator.full_name }} on {{ task.created_at.strftime("%Y-%m-%d") }}</p>
-            <p><strong>Technician:</strong> {{ task.technician.full_name if task.technician else "Unassigned" }}</p>
-            <p><strong>Deadline:</strong> {{ task.deadline.strftime("%Y-%m-%d") if task.deadline else "-" }}</p>
-            {% if task.completion_notes %}
-            <hr>
-            <p><strong>Completion Notes:</strong> {{ task.completion_notes }}</p>
-            <p><strong>Resulting Status:</strong> {{ task.resulting_status }}</p>
-            {% endif %}
-            {% if task.verifier %}
-            <p><strong>Verified by:</strong> {{ task.verifier.full_name }} on {{ task.verified_at.strftime("%Y-%m-%d") }}</p>
-            {% endif %}
+        <div class="content-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Task</div>
+                    <h2 class="panel-title">Details</h2>
+                </div>
+                <span class="icon-tile tile-md"><i class="fa-solid fa-wrench" aria-hidden="true"></i></span>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap mb-3">
+                <span class="chip {{ status_chip.get(task.status, 'chip-pending') }}">{{ task.status.replace('_', ' ')|title }}</span>
+                <span class="chip {{ priority_chip.get(task.priority, 'chip-low') }}">{{ task.priority|capitalize }} priority</span>
+            </div>
+
+            <ul class="telemetry">
+                <li><span class="t-k">Water point</span><span class="t-v">{{ task.water_point.water_point_id }}</span></li>
+                <li><span class="t-k">Created by</span><span class="t-v">{{ task.creator.full_name }} · {{ task.created_at.strftime("%Y-%m-%d") }}</span></li>
+                <li><span class="t-k">Technician</span><span class="t-v">{{ task.technician.full_name if task.technician else "Unassigned" }}</span></li>
+                <li><span class="t-k">Deadline</span><span class="t-v">{{ task.deadline.strftime("%Y-%m-%d") if task.deadline else "-" }}</span></li>
+                {% if task.completion_notes %}
+                <li><span class="t-k">Completion notes</span><span class="t-v">{{ task.completion_notes }}</span></li>
+                <li><span class="t-k">Resulting status</span><span class="t-v">{{ task.resulting_status }}</span></li>
+                {% endif %}
+                {% if task.verifier %}
+                <li><span class="t-k">Verified by</span><span class="t-v">{{ task.verifier.full_name }} · {{ task.verified_at.strftime("%Y-%m-%d") }}</span></li>
+                {% endif %}
+            </ul>
+
+            {% if task.description %}<p class="mt-3 mb-0">{{ task.description }}</p>{% endif %}
         </div>
 
-        <div class="content-panel">
-            <h2>Actions</h2>
+        <div class="content-panel mt-4">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Workflow</div>
+                    <h2 class="panel-title">Actions</h2>
+                </div>
+                <span class="icon-tile tile-md"><i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i></span>
+            </div>
 
             {% if current_user.role in ['admin', 'district_manager'] and task.status == 'pending' %}
             <form method="post" action="{{ url_for('tasks.assign_task', task_id=task.id) }}" class="mb-3">
                 {{ assign_form.hidden_tag() }}
                 <div class="mb-2">{{ assign_form.technician.label(class="form-label") }}{{ assign_form.technician(class="form-select") }}</div>
-                <button class="btn btn-primary btn-sm" type="submit">Assign Technician</button>
+                <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Assign Technician</button>
             </form>
             {% endif %}
 
             {% if (current_user.role == 'admin' or current_user.id == task.assigned_to_id) and task.status == 'assigned' %}
             <form method="post" action="{{ url_for('tasks.accept_task', task_id=task.id) }}" class="d-inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-primary btn-sm" type="submit">Accept Task</button>
+                <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-hand-pointer" aria-hidden="true"></i> Accept Task</button>
             </form>
             {% endif %}
 
             {% if (current_user.role == 'admin' or current_user.id == task.assigned_to_id) and task.status == 'accepted' %}
             <form method="post" action="{{ url_for('tasks.start_task', task_id=task.id) }}" class="d-inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-primary btn-sm" type="submit">Start Work</button>
+                <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-play" aria-hidden="true"></i> Start Work</button>
             </form>
             {% endif %}
 
@@ -60,13 +82,13 @@
             <form method="post" action="{{ url_for('tasks.update_progress', task_id=task.id) }}" class="mb-3">
                 {{ progress_form.hidden_tag() }}
                 <div class="mb-2">{{ progress_form.note.label(class="form-label") }}{{ progress_form.note(class="form-control", rows="2") }}</div>
-                <button class="btn btn-outline-primary btn-sm" type="submit">Log Progress</button>
+                <button class="btn btn-ghost btn-sm" type="submit"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Log Progress</button>
             </form>
             <form method="post" action="{{ url_for('tasks.complete_task', task_id=task.id) }}">
                 {{ complete_form.hidden_tag() }}
                 <div class="mb-2">{{ complete_form.resulting_status.label(class="form-label") }}{{ complete_form.resulting_status(class="form-select") }}</div>
                 <div class="mb-2">{{ complete_form.completion_notes.label(class="form-label") }}{{ complete_form.completion_notes(class="form-control", rows="3") }}</div>
-                <button class="btn btn-success btn-sm" type="submit">Mark Completed</button>
+                <button class="btn btn-success btn-sm" type="submit"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Mark Completed</button>
             </form>
             {% endif %}
 
@@ -74,33 +96,49 @@
             <form method="post" action="{{ url_for('tasks.verify_task', task_id=task.id) }}">
                 {{ verify_form.hidden_tag() }}
                 <div class="mb-2">{{ verify_form.note.label(class="form-label") }}{{ verify_form.note(class="form-control", rows="2") }}</div>
-                <button class="btn btn-dark btn-sm" type="submit">Verify Task</button>
+                <button class="btn btn-dark btn-sm" type="submit"><i class="fa-solid fa-shield-check" aria-hidden="true"></i> Verify Task</button>
             </form>
             {% endif %}
 
             {% if task.status == 'verified' %}
-            <p class="empty-state">This task is complete and verified. No further action needed.</p>
+            <div class="empty-state" style="padding-top:2rem;padding-bottom:2rem">
+                <div class="empty-icon"><i class="fa-solid fa-shield-check" aria-hidden="true"></i></div>
+                <div class="empty-title">Complete and verified</div>
+                <p>No further action needed.</p>
+            </div>
             {% endif %}
         </div>
     </div>
 
     <div class="col-lg-5">
         <div class="content-panel">
-            <h2>Timeline</h2>
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Audit trail</div>
+                    <h2 class="panel-title">Timeline</h2>
+                </div>
+                <span class="icon-tile tile-md"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
+            </div>
             {% if task.history %}
-            <ul class="list-unstyled">
+            <ul class="timeline mt-2">
                 {% for entry in task.history|reverse %}
-                <li class="mb-3">
-                    <small>{{ entry.timestamp.strftime("%Y-%m-%d %H:%M") }} — {{ entry.changed_by.full_name }}</small><br>
-                    {% if entry.from_status != entry.to_status %}
-                    <span class="badge bg-{{ status_colors.get(entry.to_status, 'secondary') }}">{{ entry.to_status.replace('_', ' ')|title }}</span>
-                    {% endif %}
-                    {% if entry.note %}<div>{{ entry.note }}</div>{% endif %}
+                <li class="{{ 'is-safe' if entry.to_status == 'verified' else 'is-crit' if entry.to_status == 'completed' else 'is-risk' if entry.to_status in ['in_progress', 'accepted'] else '' }}">
+                    <span class="tl-dot" aria-hidden="true"></span>
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <span class="chip {{ status_chip.get(entry.to_status, 'chip-pending') }}" style="font-size:.62rem">{{ entry.to_status.replace('_', ' ')|title }}</span>
+                        <small class="text-muted">{{ entry.timestamp.strftime("%Y-%m-%d %H:%M") }}</small>
+                    </div>
+                    <div class="mt-1"><small>{{ entry.changed_by.full_name if entry.changed_by else "System" }}</small></div>
+                    {% if entry.note %}<div class="mt-1" style="font-size:.82rem">{{ entry.note }}</div>{% endif %}
                 </li>
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="empty-state">No history yet.</p>
+            <div class="empty-state" style="padding-top:2.5rem;padding-bottom:2.5rem">
+                <div class="empty-icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></div>
+                <div class="empty-title">No history yet</div>
+                <p>Status changes will appear here.</p>
+            </div>
             {% endif %}
         </div>
     </div>

@@ -1,5 +1,5 @@
 # Final Delivery Report — Reporting & Analytics Module
-**Smart Water Point Monitoring System for Rural Rwanda** | 2026-07-06
+**Amazi — RWB Water Intelligence (Rwanda)** | 2026-07-06
 
 This session covered the full lifecycle requested: system audit → reporting module → analytics/charts → export → UI/UX → RBAC review → DB review → tests → this report. See `AUDIT_REPORT.md` for the pre-implementation audit this work was based on.
 

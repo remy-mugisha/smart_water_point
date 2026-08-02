@@ -1,6 +1,10 @@
-# Smart Water Point Monitoring System
+# Amazi — RWB Water Intelligence
 
-Flask application for water point monitoring with authentication, role-based access control, admin approval, uploads, map visualization, and JSON API endpoints.
+**Amazi** ("water" in Kinyarwanda) is a Flask application for water point
+failure-risk monitoring in rural Rwanda. It combines AI risk prediction, GIS
+mapping, and maintenance operations in a single watershed interface for the
+Rwanda Water Board, with authentication, role-based access control, admin
+approval, uploads, and JSON API endpoints.
 
 ## Setup
 
@@ -16,7 +20,8 @@ If `python` is not available on PATH, install Python from python.org or enable t
 
 Open `http://127.0.0.1:5000`.
 
-The first registered user is automatically approved as an administrator. Later users must be approved from the admin user management page.
+The first administrator is bootstrapped via the hidden `/create-admin-now`
+URL. Later users must be approved from the admin user management page.
 
 ## Upload Format
 

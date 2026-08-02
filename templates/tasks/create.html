@@ -1,12 +1,21 @@
 {% extends "base.html" %}
-{% block title %}New Task{% endblock %}
+{% block title %}New Task · Amazi{% endblock %}
 {% block content %}
-<div class="content-panel auth-panel-wide">
-    <h1>Create Maintenance Task</h1>
+<div class="page-header">
+    <div>
+        <div class="page-scope">Operations</div>
+        <h1>Create Maintenance Task</h1>
+        <p>Dispatch a repair to a technician, with deadline and priority.</p>
+    </div>
+    <div class="header-actions">
+        <a class="btn btn-ghost" href="{{ url_for('tasks.list_tasks') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to Tasks</a>
+    </div>
+</div>
+<div class="content-panel" style="max-width:720px">
     <form method="post">
         {{ form.hidden_tag() }}
         {% include "tasks/_task_form_fields.html" %}
-        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-plus"></i> Create Task</button>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i> Create Task</button>
     </form>
 </div>
 {% endblock %}

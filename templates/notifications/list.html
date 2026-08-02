@@ -1,36 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Notifications{% endblock %}
+{% block title %}Notifications · Amazi{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
+        <div class="page-scope">Operations</div>
         <h1>Notifications</h1>
         <p>Task and system updates for your account.</p>
     </div>
     {% if notifications %}
-    <form method="post" action="{{ url_for('notifications.mark_all_read') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-outline-secondary" type="submit">Mark all as read</button>
-    </form>
+    <div class="header-actions">
+        <form method="post" action="{{ url_for('notifications.mark_all_read') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-ghost btn-sm" type="submit"><i class="fa-solid fa-check-double" aria-hidden="true"></i> Mark all as read</button>
+        </form>
+    </div>
     {% endif %}
 </div>
 <div class="content-panel">
     {% if notifications %}
-    <ul class="list-unstyled">
+    <ul class="alert-rail-list">
         {% for n in notifications %}
-        <li class="mb-3 pb-3 {% if not loop.last %}border-bottom{% endif %}">
-            <form method="post" action="{{ url_for('notifications.mark_read', notification_id=n.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-link p-0 text-start {% if n.is_read %}text-muted{% else %}fw-semibold{% endif %}">
-                    {{ n.title }}
-                </button>
-            </form>
-            <div>{{ n.message }}</div>
-            <small>{{ n.created_at.strftime("%Y-%m-%d %H:%M") }}</small>
+        <li class="alert-rail-item {{ 'is-unread' if not n.is_read }} {% if 'maintenance' in n.title|lower %}is-risk{% elif 'verified' in n.title|lower or 'complete' in n.title|lower %}is-safe{% else %}is-info{% endif %}">
+            <span class="rail-color" aria-hidden="true"></span>
+            <div class="flex-grow-1">
+                <form method="post" action="{{ url_for('notifications.mark_read', notification_id=n.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="alert-title btn btn-link p-0 text-start text-decoration-none">
+                        {{ n.title }}
+                    </button>
+                </form>
+                {% if n.message %}<div class="alert-msg">{{ n.message }}</div>{% endif %}
+                <small class="text-muted" style="font-family:var(--font-mono);font-size:.72rem">
+                    {{ n.created_at.strftime("%Y-%m-%d %H:%M") }}
+                    {% if not n.is_read %} · <span class="text-primary">unread</span>{% endif %}
+                </small>
+            </div>
+            {% if n.is_read %}
+            <span class="chip chip-pending" style="font-size:.58rem">Read</span>
+            {% endif %}
         </li>
         {% endfor %}
     </ul>
     {% else %}
-    <p class="empty-state">No notifications yet.</p>
+    <div class="empty-state" style="padding-top:4.5rem;padding-bottom:4.5rem">
+        <div class="empty-icon"><i class="fa-solid fa-bell-slash" aria-hidden="true"></i></div>
+        <div class="empty-title">All caught up</div>
+        <p>You have no notifications.</p>
+    </div>
     {% endif %}
 </div>
 {% endblock %}

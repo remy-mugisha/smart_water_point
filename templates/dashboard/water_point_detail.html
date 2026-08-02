@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}{{ wp.water_point_id }} · Amazi{% endblock %}
+{% block content %}
+{% set status = wp.current_status %}
+
+<div class="page-header">
+    <div>
+        <div class="page-scope">Water Point Record</div>
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+            <h1 class="mb-0 mono" style="font-size:1.5rem">{{ wp.water_point_id }}</h1>
+            <span class="chip chip-{{ 'functional' if status == 'Functional' else 'at-risk' if status == 'At Risk' else 'non-functional' if status == 'Non-Functional' else 'under-repair' }}">
+                <span class="chip-dot {{ 'is-filled' if status in ('Functional', 'Under Repair') else 'is-half' if status == 'At Risk' }}"></span>
+                {{ status }}
+            </span>
+        </div>
+        <p>{{ wp.technology_type }} · {{ wp.district }}{% if wp.sector and not wp.sector.startswith('Sector-') %} · {{ wp.sector }}{% endif %}</p>
+    </div>
+    <div class="header-actions">
+        <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.water_points') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Water Points</a>
+        <a class="btn btn-primary" href="{{ url_for('dashboard.map_view', wp=wp.id) }}"><i class="fa-solid fa-map-location-dot" aria-hidden="true"></i> Open in Map</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="content-panel mb-4">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Field data</div>
+                    <h2 class="panel-title">Telemetry</h2>
+                </div>
+                {% if wp.last_prediction_date %}
+                <span class="form-hint">Predicted {{ wp.last_prediction_date.strftime("%Y-%m-%d %H:%M") }}</span>
+                {% endif %}
+            </div>
+            <ul class="telemetry">
+                <li><span class="t-k">Water point ID</span><span class="t-v">{{ wp.water_point_id }}</span></li>
+                <li><span class="t-k">Technology</span><span class="t-v">{{ wp.technology_type }}</span></li>
+                <li><span class="t-k">District</span><span class="t-v">{{ wp.district }}</span></li>
+                {% if wp.sector and not wp.sector.startswith('Sector-') %}<li><span class="t-k">Sector</span><span class="t-v">{{ wp.sector }}</span></li>{% endif %}
+                {% if wp.cell %}<li><span class="t-k">Cell</span><span class="t-v">{{ wp.cell }}</span></li>{% endif %}
+                <li><span class="t-k">Year installed</span><span class="t-v">{{ wp.year_installed or '—' }}</span></li>
+                <li><span class="t-k">Population served</span><span class="t-v">{{ (wp.population_served|string|replace(',', '')) if wp.population_served else '—' }}</span></li>
+                <li><span class="t-k">Depth</span><span class="t-v">{{ wp.depth or '—' }}{% if wp.depth %} m{% endif %}</span></li>
+                <li><span class="t-k">Monthly rainfall</span><span class="t-v">{{ '%.0f'|format(wp.monthly_rainfall) if wp.monthly_rainfall else '—' }} mm</span></li>
+                {% if wp.water_source %}
+                <li><span class="t-k">Source</span><span class="t-v">{{ wp.water_source.name }}</span></li>
+                <li><span class="t-k">Catchment</span><span class="t-v">{{ wp.water_source.catchment or '—' }}</span></li>
+                {% endif %}
+                <li><span class="t-k">Coordinates</span><span class="t-v">{{ '%.5f'|format(wp.latitude) }}, {{ '%.5f'|format(wp.longitude) }}</span></li>
+            </ul>
+        </div>
+
+        <div class="content-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Explainable AI</div>
+                    <h2 class="panel-title">Risk Factors</h2>
+                </div>
+                <span class="chip chip-{{ 'functional' if wp.prediction_confidence == 'High' else 'at-risk' }}"><span class="chip-dot {{ 'is-filled' if wp.prediction_confidence == 'High' }}"></span>Confidence {{ wp.prediction_confidence or '—' }}</span>
+            </div>
+
+            {% if factors %}
+            <p style="font-size:.85rem;color:var(--color-muted);margin-bottom:1rem">
+                Why the model scores this point at <strong style="color:var(--color-text)">{{ risk_pct }}% risk</strong>, by contributing factor.
+                <span class="mono" style="font-size:.75rem">▲ raises risk · ▼ lowers risk</span>
+            </p>
+            <ul class="factor-list">
+                {% for f in factors %}
+                <li class="factor-row">
+                    <span class="f-name">{{ f.name }}</span>
+                    <span class="f-val">{{ f.value }}</span>
+                    <span class="f-arrow {{ f.direction }}">{{ '▲' if f.direction == 'up' else '▼' if f.direction == 'down' else '—' }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">Train the failure-risk model to see per-point explanations here.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="content-panel mb-4">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">GIS</div>
+                    <h2 class="panel-title">Location</h2>
+                </div>
+            </div>
+            <div id="wp-map" style="height:280px;border-radius:var(--r-md);border:1px solid var(--color-line);background:var(--ink-50)"></div>
+        </div>
+
+        <div class="content-panel">
+            <div class="panel-header">
+                <div>
+                    <div class="kicker">Maintenance</div>
+                    <h2 class="panel-title">History</h2>
+                </div>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('tasks.list_tasks') }}">New task</a>
+            </div>
+            {% if tasks %}
+            <ul class="risk-list">
+                {% for task in tasks[:6] %}
+                <li>
+                    <a class="risk-item" href="{{ url_for('tasks.task_detail', task_id=task.id) }}">
+                        <span class="icon-tile tile-sm tile-steel"><i class="fa-solid fa-wrench" aria-hidden="true"></i></span>
+                        <span class="risk-meta">
+                            <span class="risk-name">{{ task.title }}</span>
+                            <span class="risk-sub">{{ task.created_at.strftime("%Y-%m-%d") }} · {{ task.technician.full_name if task.technician else 'Unassigned' }}</span>
+                        </span>
+                        <span class="chip chip-{{ {'pending':'pending','assigned':'info','accepted':'info','in_progress':'at-risk','completed':'functional','verified':'functional'}.get(task.status, 'pending') }}">
+                            {{ task.status.replace('_', ' ')|title }}
+                        </span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="empty-state">No maintenance recorded for this point yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const mapEl = document.getElementById("wp-map");
+    if (!mapEl || typeof L === "undefined") return;
+    const map = L.map("wp-map", { attributionControl: true, zoomControl: false });
+    L.control.zoom({ position: "bottomright" }).addTo(map);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+    const lat = {{ wp.latitude }}, lng = {{ wp.longitude }};
+    const statusColor = {{ {
+        'Functional': 'var(--safe-600)',
+        'At Risk': 'var(--risk-600)',
+        'Non-Functional': 'var(--crit-600)',
+        'Under Repair': 'var(--steel-500)'
+    }.get(status, 'var(--res-600)')|tojson }};
+    L.divIcon({ className: "amazi-pin", iconSize: [26, 30], iconAnchor: [13, 28], popupAnchor: [0, -28], html: "" });
+    const marker = L.marker([lat, lng], { icon: L.divIcon({ className: "amazi-pin", iconSize: [26, 30], iconAnchor: [13, 28], popupAnchor: [0, -28], html: "" }) });
+    marker._icon.style.setProperty("--pin", statusColor);
+    marker.addTo(map);
+    marker.bindPopup('<div class="map-popup"><div class="pp-id">{{ wp.water_point_id }}</div>' +
+        '<div class="pp-row"><span class="pp-k">Status</span><span>{{ status }}</span></div>' +
+        '<div class="pp-row"><span class="pp-k">Risk</span><span>{{ risk_pct }}%</span></div></div>').openPopup();
+    map.setView([lat, lng], 14);
+})();
+</script>
+{% endblock %}

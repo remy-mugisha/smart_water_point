@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Model &amp; Settings · Amazi{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-scope">System</div>
+        <h1>Model &amp; Settings</h1>
+        <p>Inspect the deployed prediction model, its training metrics, and the runtime thresholds that govern every risk decision.</p>
+    </div>
+    <div class="header-actions">
+        <span class="context-pill" style="border-color:var(--color-line-strong);color:var(--color-text);background:var(--color-surface)">
+            <span class="ai-dot {{ '' if model_available else 'is-off' }}" aria-hidden="true"></span>
+            {{ 'Model online' if model_available else 'Model offline' }}
+        </span>
+    </div>
+</div>
+
+<div class="prediction-layout">
+    <div class="content-panel">
+        <div class="panel-header">
+            <div>
+                <div class="kicker">Model</div>
+                <h2 class="panel-title">Deployed predictor</h2>
+            </div>
+            <span class="icon-tile tile-md"><i class="fa-solid fa-microscope" aria-hidden="true"></i></span>
+        </div>
+
+        {% if not model_available %}
+        <div class="empty-state" style="padding-top:3rem;padding-bottom:3rem">
+            <div class="empty-icon"><i class="fa-solid fa-cloud-arrow-down" aria-hidden="true"></i></div>
+            <div class="empty-title">No model deployed</div>
+            <p>Run <span class="mono">flask train-model --data &lt;file&gt;</span> to train and deploy the failure-risk model.</p>
+        </div>
+        {% else %}
+        {% if metrics %}
+        <div class="stats-grid" style="--cols:4">
+            <div class="stat-card"><span>Accuracy</span><strong>{{ '%.2f'|format(metrics.accuracy) }}</strong></div>
+            <div class="stat-card"><span>ROC–AUC</span><strong>{{ '%.2f'|format(metrics.roc_auc) }}</strong></div>
+            <div class="stat-card"><span>Precision</span><strong>{{ '%.2f'|format(metrics.precision) }}</strong></div>
+            <div class="stat-card"><span>Recall</span><strong>{{ '%.2f'|format(metrics.recall) }}</strong></div>
+        </div>
+
+        <ul class="telemetry mt-4">
+            <li><span class="t-k">Trained at</span><span class="t-v">{{ metrics.trained_at }}</span></li>
+            <li><span class="t-k">Training data</span><span class="t-v">{{ metrics.data_path }}</span></li>
+            <li><span class="t-k">Dataset size</span><span class="t-v">{{ metrics.dataset_size }} samples ({{ metrics.train_size }} train / {{ metrics.test_size }} test)</span></li>
+            <li><span class="t-k">Positive class</span><span class="t-v">{{ metrics.positive_label }}</span></li>
+        </ul>
+
+        <div class="kicker" style="margin:1.25rem 0 .6rem">Confusion matrix</div>
+        {% if metrics.confusion_matrix %}
+        {% set cm = metrics.confusion_matrix %}
+        <div class="confusion-grid" style="--cm-cols:{{ cm[0]|length }}">
+            <div class="cm-head cm-corner" aria-hidden="true"></div>
+            {% for col in cm[0] %}<div class="cm-head">Pred.<br>{{ loop.index0 }}</div>{% endfor %}
+            {% for row in cm %}
+                {% set outer_index = loop.index0 %}
+                <div class="cm-head">Actual {{ outer_index }}</div>
+                {% for cell in row %}
+                <div class="cm-cell {{ 'cm-hit' if loop.index0 == outer_index else 'cm-miss' }}">{{ cell }}</div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        <p class="form-hint mt-2 mb-0" style="font-size:.72rem">Rows = actual class, columns = predicted class. 0 = healthy, 1 = failure.</p>
+        {% endif %}
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="content-panel">
+        <div class="panel-header">
+            <div>
+                <div class="kicker">Decision rules</div>
+                <h2 class="panel-title">Model behavior</h2>
+            </div>
+            <span class="icon-tile tile-md"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i></span>
+        </div>
+
+        <ul class="telemetry">
+            <li><span class="t-k">At-risk threshold</span><span class="t-v">{{ (risk_threshold * 100)|int }}%</span></li>
+            <li><span class="t-k">Status buckets</span><span class="t-v">≤33% Functional · ≤66% At Risk · &gt;66% Non-Functional</span></li>
+        </ul>
+
+        <div class="kicker" style="margin:1.25rem 0 .6rem">Feature weights</div>
+        {% if coefficients %}
+        <ul class="factor-list">
+            {% for name, weight in coefficients %}
+            <li class="factor-row">
+                <span class="f-name">{{ name|replace('_', ' ')|title }}</span>
+                <span class="f-val">{{ weight }}</span>
+                <span class="f-arrow {{ 'up' if weight > 0 else 'down' }}">{{ '▲' if weight > 0 else '▼' }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="form-hint mt-2 mb-0" style="font-size:.75rem">Coefficients from the trained logistic regression. Positive = raises failure risk.</p>
+        {% else %}
+        <p class="form-hint">No coefficient data recorded for the deployed model.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="content-panel mt-4">
+    <div class="panel-header">
+        <div>
+            <div class="kicker">Runtime</div>
+            <h2 class="panel-title">System settings</h2>
+        </div>
+        <span class="icon-tile tile-md"><i class="fa-solid fa-sliders" aria-hidden="true"></i></span>
+    </div>
+    <ul class="telemetry">
+        {% for s in settings %}
+        <li>
+            <span class="t-k">{{ s.label }}</span>
+            <span class="t-v">
+                {% if s.type == 'bool' %}{{ 'Enabled' if s.value else 'Disabled' }}
+                {% elif s.type == 'float' and s.key == 'risk_threshold' %}{{ (s.value * 100)|int }}%
+                {% else %}{{ s.value }}{% endif %}
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

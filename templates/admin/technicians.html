@@ -1,61 +1,107 @@
 {% extends "base.html" %}
-{% block title %}Technicians{% endblock %}
+{% block title %}Technicians · Amazi{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
+        <div class="page-scope">System</div>
         <h1>Technicians</h1>
         <p>Manage technician accounts and resend credentials.</p>
     </div>
-    <a class="btn btn-primary" href="{{ url_for('admin.create_technician') }}"><i class="fa-solid fa-user-plus"></i> Create Technician</a>
+    <div class="header-actions">
+        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createTechnicianModal"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Create Technician</button>
+    </div>
 </div>
-<div class="content-panel table-responsive">
-    <table class="table align-middle">
-        <thead>
+<div class="content-panel">
+    {% if technicians %}
+    <div class="table-responsive">
+        <table class="table amazi-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>District</th>
+                    <th>Status</th>
+                    <th class="text-end"></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for tech in technicians %}
             <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>District</th>
-                <th>Status</th>
-                <th></th>
+                <td>
+                    <div class="fw-semibold">{{ tech.full_name }}</div>
+                    <small class="text-muted" style="font-family:var(--font-mono);font-size:.72rem">@{{ tech.username }}</small>
+                </td>
+                <td>{{ tech.email }}</td>
+                <td>{{ tech.phone or "-" }}</td>
+                <td>{{ tech.district or "-" }}</td>
+                <td>
+                    {% if tech.must_change_password %}
+                    <span class="chip chip-in-progress"><span class="chip-dot is-half"></span>Change password</span>
+                    {% elif tech.is_active %}
+                    <span class="chip chip-completed"><span class="chip-dot is-filled"></span>Active</span>
+                    {% else %}
+                    <span class="chip chip-pending">Inactive</span>
+                    {% endif %}
+                    {% if not tech.is_approved %}<span class="chip chip-critical"><span class="chip-dot"></span>Pending</span>{% endif %}
+                </td>
+                <td class="text-end">
+                    <form class="d-inline" method="post" action="{{ url_for('admin.resend_credentials', user_id=tech.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-ghost btn-sm" type="submit" title="Generate new password and email it to the technician">
+                            <i class="fa-solid fa-envelope" aria-hidden="true"></i> Resend
+                        </button>
+                    </form>
+                    <form class="d-inline" method="post" action="{{ url_for('admin.toggle_user_active', user_id=tech.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-ghost btn-sm {{ 'text-danger' if tech.is_active }}" type="submit" title="{{ "Deactivate" if tech.is_active else "Activate" }}" {% if tech.is_active %}onclick="return confirm('Deactivate {{ tech.full_name }}? They will not be able to log in.')"{% endif %}>
+                            {{ "Deactivate" if tech.is_active else "Activate" }}
+                        </button>
+                    </form>
+                </td>
             </tr>
-        </thead>
-        <tbody>
-        {% for tech in technicians %}
-        <tr>
-            <td>{{ tech.full_name }}<br><small class="text-muted">@{{ tech.username }}</small></td>
-            <td>{{ tech.email }}</td>
-            <td>{{ tech.phone or "-" }}</td>
-            <td>{{ tech.district or "-" }}</td>
-            <td>
-                {% if tech.must_change_password %}
-                <span class="badge bg-warning text-dark">Must change password</span>
-                {% elif tech.is_active %}
-                <span class="badge bg-success">Active</span>
-                {% else %}
-                <span class="badge bg-secondary">Inactive</span>
-                {% endif %}
-                {% if not tech.is_approved %}<span class="badge bg-danger ms-1">Pending</span>{% endif %}
-            </td>
-            <td class="text-end">
-                <form class="d-inline" method="post" action="{{ url_for('admin.resend_credentials', user_id=tech.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit" title="Generate new password and email it to the technician">
-                        <i class="fa-solid fa-envelope"></i> Resend Credentials
-                    </button>
-                </form>
-                <form class="d-inline" method="post" action="{{ url_for('admin.toggle_user_active', user_id=tech.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-danger" type="submit" title="{{ "Deactivate" if tech.is_active else "Activate" }}" {% if tech.is_active %}onclick="return confirm('Deactivate {{ tech.full_name }}? They will not be able to log in.')"{% endif %}>
-                        {{ "Deactivate" if tech.is_active else "Activate" }}
-                    </button>
-                </form>
-            </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="text-center text-muted py-4">No technicians found. <a href="{{ url_for('admin.create_technician') }}">Create one</a>.</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding-top:4rem;padding-bottom:4rem">
+        <div class="empty-icon"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i></div>
+        <div class="empty-title">No technicians yet</div>
+        <p><a class="link-inherit" href="#" data-bs-toggle="modal" data-bs-target="#createTechnicianModal">Create your first technician</a>.</p>
+    </div>
+    {% endif %}
 </div>
+
+<div class="modal fade" id="createTechnicianModal" tabindex="-1" aria-labelledby="createTechnicianModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <div class="kicker">System</div>
+                    <h5 class="modal-title" id="createTechnicianModalLabel">Create Technician Account</h5>
+                    <p class="modal-sub">The system will generate a temporary password and email it to the technician.</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% include "admin/_create_technician_form.html" %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if create_modal_open %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var m = new bootstrap.Modal(document.getElementById("createTechnicianModal"));
+    m.show();
+});
+</script>
+{% endif %}
 {% endblock %}

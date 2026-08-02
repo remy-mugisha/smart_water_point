@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Amazi — Water Intelligence for Rural Rwanda{% endblock %}
+{% block body_class %}landing-page{% endblock %}
+{% block navbar %}{% endblock %}
+{% block main_wrapper %}
+<div class="landing">
+
+    <header class="landing-brandbar">
+        <a class="brand" href="{{ url_for('home') }}">
+            <span class="brand-mark" aria-hidden="true">
+                <img src="{{ url_for('static', filename='images/amazi-mark.svg') }}" alt="">
+            </span>
+            <span>
+                <span class="brand-wordmark">Amazi</span>
+                <span class="brand-sub">RWB Water Intelligence</span>
+            </span>
+        </a>
+        <span class="spacer"></span>
+        <a href="#platform">Platform</a>
+        <a href="#model">The Model</a>
+        <a href="#trust">Trust &amp; Security</a>
+        {% if current_user.is_authenticated %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('dashboard.index') }}">Open Dashboard</a>
+        {% else %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('auth.login') }}">Sign In</a>
+        {% endif %}
+    </header>
+
+    <section class="landing-hero">
+        <div class="hero-inner">
+            <div>
+                <div class="kicker">Rwanda Water Board · Water Intelligence</div>
+                <h1>Every water point mapped.<br><span class="hero-accent">Every failure predicted.</span></h1>
+                <p class="hero-lead">
+                    Amazi turns sensor, survey, and operational data into an early-warning system —
+                    telling district officers which of <strong>223 water points</strong> will fail next, and why.
+                </p>
+                <div class="hero-actions">
+                    {% if current_user.is_authenticated %}
+                    <a class="btn btn-primary" href="{{ url_for('dashboard.index') }}"><i class="fa-solid fa-wave-square" aria-hidden="true"></i> Enter the Reservoir</a>
+                    {% else %}
+                    <a class="btn btn-primary" href="{{ url_for('auth.login') }}"><i class="fa-solid fa-wave-square" aria-hidden="true"></i> Enter the Reservoir</a>
+                    <a class="btn btn-ghost" href="#platform">See the platform</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hero-visual" aria-hidden="true">
+                <div class="hv-contours"></div>
+                <div class="hv-river"></div>
+                <div class="hv-pin hv-pin-a"></div>
+                <div class="hv-pin hv-pin-b"></div>
+                <div class="hv-pin hv-pin-c"></div>
+                <div class="hv-pin hv-pin-d hv-pin-risk"></div>
+                <div class="hv-gauge">
+                    <div class="hv-gauge-dial">
+                        <div class="hv-gauge-needle"></div>
+                    </div>
+                    <div class="hv-gauge-meta">
+                        <span class="hv-gauge-k">Risk index</span>
+                        <span class="hv-gauge-v">70.4%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-strip" aria-label="Platform statistics">
+        <div class="strip-inner">
+            <div class="strip-stat"><span class="v">223</span><span class="k">Water points monitored</span></div>
+            <div class="strip-stat"><span class="v">5</span><span class="k">Districts under coverage</span></div>
+            <div class="strip-stat"><span class="v">0.77</span><span class="k">ROC–AUC prediction strength</span></div>
+            <div class="strip-stat"><span class="v">100%</span><span class="k">Predictions explained</span></div>
+        </div>
+    </section>
+
+    <section class="landing-section" id="platform">
+        <div class="sec-head">
+            <div class="kicker">The platform</div>
+            <h2>From source to tap, in one view</h2>
+        </div>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <span class="icon-tile tile-lg"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i></span>
+                <h3>Risk Dashboard</h3>
+                <p>The Amazi Reservoir — a live gauge of national water health, with risk-ranked action lists your team can act on today.</p>
+            </div>
+            <div class="feature-card">
+                <span class="icon-tile tile-lg"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
+                <h3>GIS Intelligence</h3>
+                <p>Water points, district footprints, and rainfall overlays on a live map, clustered for any zoom level.</p>
+            </div>
+            <div class="feature-card">
+                <span class="icon-tile tile-lg"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span>
+                <h3>Prediction Center</h3>
+                <p>Score any asset with a logistic regression model and see the contributing factors behind every score.</p>
+            </div>
+            <div class="feature-card">
+                <span class="icon-tile tile-lg"><i class="fa-solid fa-wrench" aria-hidden="true"></i></span>
+                <h3>Maintenance Ops</h3>
+                <p>From pending to verified — a full task lifecycle keeps repairs accountable and audit-ready.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-section landing-section-dark" id="model">
+        <div class="sec-head">
+            <div class="kicker">The model</div>
+            <h2>Water, read like a watershed</h2>
+        </div>
+        <div class="model-flow">
+            <div class="flow-step">
+                <div class="flow-num">01</div>
+                <span class="icon-tile tile-lg"><i class="fa-solid fa-database" aria-hidden="true"></i></span>
+                <h3>Collect</h3>
+                <p>Age, population, rainfall, technology type, and catchment pressure — 220 labeled samples.</p>
+            </div>
+            <div class="flow-arrow"><i class="fa-solid fa-angles-right" aria-hidden="true"></i></div>
+            <div class="flow-step">
+                <div class="flow-num">02</div>
+                <span class="icon-tile tile-lg"><i class="fa-solid fa-brain" aria-hidden="true"></i></span>
+                <h3>Score</h3>
+                <p>A trained logistic regression assigns every water point a failure probability in seconds.</p>
+            </div>
+            <div class="flow-arrow"><i class="fa-solid fa-angles-right" aria-hidden="true"></i></div>
+            <div class="flow-step">
+                <div class="flow-num">03</div>
+                <span class="icon-tile tile-lg"><i class="fa-solid fa-route" aria-hidden="true"></i></span>
+                <h3>Dispatch</h3>
+                <p>High-risk assets surface as ranked maintenance tasks, straight to the right district.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-section" id="trust">
+        <div class="sec-head">
+            <div class="kicker">Trust &amp; security</div>
+            <h2>Built for public infrastructure</h2>
+        </div>
+        <div class="trust-grid">
+            <div class="trust-item"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i><div><h3>Role-based access</h3><p>Admin, district officer, and technician scopes keep data with the people who need it.</p></div></div>
+            <div class="trust-item"><i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><div><h3>Full audit trail</h3><p>Every action recorded — from model reruns to task verification.</p></div></div>
+            <div class="trust-item"><i class="fa-solid fa-lock" aria-hidden="true"></i><div><h3>Explainable by design</h3><p>No black boxes: every prediction shows its contributing factors and confidence.</p></div></div>
+        </div>
+    </section>
+
+    <footer class="landing-foot">
+        <div class="foot-inner">
+            <div class="brand">
+                <span class="brand-mark" aria-hidden="true">
+                    <img src="{{ url_for('static', filename='images/amazi-mark.svg') }}" alt="">
+                </span>
+                <span>
+                    <span class="brand-wordmark">Amazi</span>
+                    <span class="brand-sub">RWB Water Intelligence</span>
+                </span>
+            </div>
+            <p>Amazi — Kinyarwanda for <em>water</em>. Protecting every drop.</p>
+            <p>© 2026 Rwanda Water Board · <a href="{{ url_for('auth.privacy_policy') }}">Privacy</a></p>
+        </div>
+    </footer>
+</div>
+{% endblock %}

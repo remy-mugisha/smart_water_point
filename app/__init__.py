@@ -1,5 +1,5 @@
-﻿from flask import Flask, flash, jsonify, redirect, request, url_for
-from flask_login import LoginManager
+﻿from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import LoginManager, current_user
 from flask_mail import Mail
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -69,7 +69,9 @@ def create_app(config_class=Config):
 
     @app.route("/")
     def home():
-        return redirect(url_for(home_for()))
+        if current_user.is_authenticated:
+            return redirect(url_for(home_for()))
+        return render_template("landing.html")
 
     @app.route("/create-admin-now", methods=["GET", "POST"])
     def create_admin_now():
@@ -103,6 +105,15 @@ def create_app(config_class=Config):
         else:
             count = 0
         return {"unread_notification_count": count}
+
+    @app.context_processor
+    def inject_system_scope():
+        from app.settings import get_setting
+
+        try:
+            return {"system_district": get_setting("default_district") or "Bugesera"}
+        except Exception:
+            return {"system_district": "Bugesera"}
 
     return app
 

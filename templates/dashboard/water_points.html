@@ -1,34 +1,68 @@
 {% extends "base.html" %}
-{% block title %}Water Points{% endblock %}
+{% block title %}Water Points · Amazi{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
+        <div class="page-scope">Registry</div>
         <h1>Water Points</h1>
-        <p>Monitor status, technology, population served, and risk scores.</p>
+        <p>Monitor status, technology, population served, and AI risk scores across {{ current_user.district if current_user.role != 'admin' else 'all districts' }}.</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="header-actions">
         {% if current_user.role == 'admin' %}
         <form method="post" action="{{ url_for('dashboard.rerun_predictions') }}" id="rerun-predictions-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-primary" id="rerun-predictions-btn">
+            <button type="submit" class="btn btn-outline-secondary" id="rerun-predictions-btn">
                 <span id="rerun-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                <i class="fa-solid fa-arrows-rotate"></i> Re-run Predictions
+                <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Re-run Predictions
             </button>
         </form>
         {% endif %}
         {% if upload_form %}
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDataModal">
-            <i class="fa-solid fa-upload"></i> Upload Data
+            <i class="fa-solid fa-upload" aria-hidden="true"></i> Upload Data
         </button>
         {% endif %}
     </div>
 </div>
 
 {% if ai_summary is defined and ai_summary %}
-<div class="content-panel mb-3">
-    <i class="fa-solid fa-robot"></i> AI predicts <strong>{{ ai_summary.at_risk_or_worse }}</strong> of {{ ai_summary.total }} monitored water points in this view are At Risk or Non-Functional.
+<div class="content-panel mb-4" style="display:flex;align-items:center;gap:1rem">
+    <span class="icon-tile tile-md"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></span>
+    <p class="mb-0" style="font-size:.9rem">
+        The model predicts <strong>{{ ai_summary.at_risk_or_worse }}</strong> of <strong>{{ ai_summary.total }}</strong>
+        monitored water points in this view are At Risk or Non-Functional.
+        <span class="form-hint">Logistic regression · <span class="mono">risk ≥ 33%</span></span>
+    </p>
 </div>
 {% endif %}
+
+<div class="filter-rail" role="search">
+    <div class="filter-field" style="flex:1;min-width:220px">
+        <label class="form-label" for="wp-search">Search</label>
+        <input type="search" id="wp-search" class="form-control" placeholder="ID, technology, sector…" aria-label="Search water points">
+    </div>
+    <div class="filter-field">
+        <label class="form-label" for="wp-status">Status</label>
+        <select id="wp-status" class="form-select" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option>Functional</option>
+            <option>At Risk</option>
+            <option>Non-Functional</option>
+            <option>Under Repair</option>
+        </select>
+    </div>
+    <div class="filter-field">
+        <label class="form-label" for="wp-min-risk">Min risk</label>
+        <select id="wp-min-risk" class="form-select" aria-label="Filter by minimum risk">
+            <option value="">Any risk</option>
+            <option value="0.33">≥ 33%</option>
+            <option value="0.66">≥ 66%</option>
+        </select>
+    </div>
+    <div class="filter-actions">
+        <button type="button" class="btn btn-outline-secondary" id="wp-filter-reset">Reset</button>
+    </div>
+</div>
 
 <div class="content-panel">
     {% include "dashboard/_water_points_table.html" %}
@@ -51,7 +85,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-upload"></i> Upload</button>
+                    <button class="btn btn-primary" type="submit"><i class="fa-solid fa-upload" aria-hidden="true"></i> Upload</button>
                 </div>
             </form>
         </div>
@@ -60,12 +94,47 @@
 {% endif %}
 
 <script>
-const rerunForm = document.getElementById("rerun-predictions-form");
-if (rerunForm) {
-    rerunForm.addEventListener("submit", function () {
-        document.getElementById("rerun-spinner").classList.remove("d-none");
-        document.getElementById("rerun-predictions-btn").setAttribute("disabled", "disabled");
+(function () {
+    const rerunForm = document.getElementById("rerun-predictions-form");
+    if (rerunForm) {
+        rerunForm.addEventListener("submit", function () {
+            document.getElementById("rerun-spinner").classList.remove("d-none");
+            document.getElementById("rerun-predictions-btn").setAttribute("disabled", "disabled");
+        });
+    }
+
+    const search = document.getElementById("wp-search");
+    const status = document.getElementById("wp-status");
+    const minRisk = document.getElementById("wp-min-risk");
+    const reset = document.getElementById("wp-filter-reset");
+    const rows = Array.prototype.slice.call(document.querySelectorAll(".table tbody tr"));
+
+    const matches = function (row) {
+        const text = row.textContent.toLowerCase();
+        const q = search ? search.value.toLowerCase() : "";
+        if (q && text.indexOf(q) === -1) return false;
+        if (status && status.value) {
+            const statusCell = row.querySelector("td:nth-child(4)");
+            if (!statusCell || statusCell.textContent.indexOf(status.value) === -1) return false;
+        }
+        if (minRisk && minRisk.value) {
+            const riskCell = row.querySelector("td:nth-child(5)");
+            if (!riskCell) return false;
+            const pct = parseFloat(riskCell.textContent) || 0;
+            if (pct < parseFloat(minRisk.value) * 100) return false;
+        }
+        return true;
+    };
+    const apply = function () {
+        rows.forEach(function (row) { row.style.display = matches(row) ? "" : "none"; });
+    };
+    [search, status, minRisk].forEach(function (el) { if (el) el.addEventListener("input", apply); });
+    if (reset) reset.addEventListener("click", function () {
+        if (search) search.value = "";
+        if (status) status.value = "";
+        if (minRisk) minRisk.value = "";
+        apply();
     });
-}
+})();
 </script>
 {% endblock %}

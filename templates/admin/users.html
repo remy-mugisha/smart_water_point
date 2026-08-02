@@ -1,50 +1,65 @@
 {% extends "base.html" %}
-{% block title %}Users{% endblock %}
+{% block title %}Users · Amazi{% endblock %}
 {% block content %}
+{% set role_chip = {'admin':'chip-verified','district_manager':'chip-accepted','district_technician':'chip-assigned','viewer':'chip-pending'} %}
 <div class="page-header">
     <div>
+        <div class="page-scope">System</div>
         <h1>Users</h1>
         <p>Approve new users and manage account status.</p>
     </div>
 </div>
-<div class="content-panel table-responsive">
-    <table class="table align-middle">
-        <thead><tr><th>Name</th><th>Role</th><th>District</th><th>Location</th><th>Approved</th><th>Active</th><th></th></tr></thead>
-        <tbody>
-        {% for user in users %}
-        <tr>
-            <td>{{ user.full_name }}<br><small>{{ user.username }} / {{ user.email }}</small></td>
-            <td>{{ user.role }}</td>
-            <td>{{ user.district or "-" }}</td>
-            <td>{{ [user.sector, user.cell, user.village] | select | join(" / ") or "-" }}</td>
-            <td>{{ "Yes" if user.is_approved else "No" }}</td>
-            <td>{{ "Yes" if user.is_active else "No" }}</td>
-            <td class="text-end">
-                {% if not user.is_approved and user.is_active %}
-                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('admin.approve_user', user_id=user.id) }}">Review</a>
-                {% endif %}
-                {% if user.id != current_user.id %}
-                <form class="d-inline" method="post" action="{{ url_for('admin.change_role', user_id=user.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <select name="role" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
-                        <option value="viewer" {{ "selected" if user.role == "viewer" }}>Viewer</option>
-                        <option value="district_technician" {{ "selected" if user.role == "district_technician" }}>Technician</option>
-                        <option value="district_manager" {{ "selected" if user.role == "district_manager" }}>Manager</option>
-                        <option value="admin" {{ "selected" if user.role == "admin" }}>Admin</option>
-                    </select>
-                </form>
-                {% endif %}
-                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.reset_password', user_id=user.id) }}" title="Reset this user's password">
-                    <i class="fa-solid fa-key"></i> Reset Password
-                </a>
-                <form class="d-inline" method="post" action="{{ url_for('admin.toggle_user_active', user_id=user.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit" {% if user.is_active %}onclick="return confirm('Deactivate {{ user.full_name }}? They will not be able to log in.')"{% endif %}>{{ "Deactivate" if user.is_active else "Activate" }}</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<div class="content-panel">
+    {% if users %}
+    <div class="table-responsive">
+        <table class="table amazi-table align-middle mb-0">
+            <thead><tr><th>Name</th><th>Role</th><th>District</th><th>Location</th><th>Approved</th><th>Active</th><th class="text-end"></th></tr></thead>
+            <tbody>
+            {% for user in users %}
+            <tr>
+                <td>
+                    <div class="fw-semibold">{{ user.full_name }}</div>
+                    <small class="text-muted" style="font-family:var(--font-mono);font-size:.72rem">{{ user.username }} · {{ user.email }}</small>
+                </td>
+                <td><span class="chip {{ role_chip.get(user.role, 'chip-pending') }}">{{ user.role|replace('_', ' ')|title }}</span></td>
+                <td>{{ user.district or "-" }}</td>
+                <td>{{ [user.sector, user.cell, user.village] | select | join(" / ") or "-" }}</td>
+                <td><span class="chip {{ 'chip-completed' if user.is_approved else 'chip-critical' }}">{{ "Approved" if user.is_approved else "Pending" }}</span></td>
+                <td><span class="chip {{ 'chip-completed' if user.is_active else 'chip-pending' }}">{{ "Active" if user.is_active else "Inactive" }}</span></td>
+                <td class="text-end">
+                    {% if not user.is_approved and user.is_active %}
+                    <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.approve_user', user_id=user.id) }}"><i class="fa-solid fa-user-check" aria-hidden="true"></i> Review</a>
+                    {% endif %}
+                    {% if user.id != current_user.id %}
+                    <form class="d-inline" method="post" action="{{ url_for('admin.change_role', user_id=user.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <select name="role" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()" aria-label="Change role for {{ user.full_name }}">
+                            <option value="viewer" {{ "selected" if user.role == "viewer" }}>Viewer</option>
+                            <option value="district_technician" {{ "selected" if user.role == "district_technician" }}>Technician</option>
+                            <option value="district_manager" {{ "selected" if user.role == "district_manager" }}>Manager</option>
+                            <option value="admin" {{ "selected" if user.role == "admin" }}>Admin</option>
+                        </select>
+                    </form>
+                    {% endif %}
+                    <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.reset_password', user_id=user.id) }}" title="Reset this user's password">
+                        <i class="fa-solid fa-key" aria-hidden="true"></i> Reset
+                    </a>
+                    <form class="d-inline" method="post" action="{{ url_for('admin.toggle_user_active', user_id=user.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-ghost btn-sm {{ 'text-danger' if user.is_active }}" type="submit" {% if user.is_active %}onclick="return confirm('Deactivate {{ user.full_name }}? They will not be able to log in.')"{% endif %}>{{ "Deactivate" if user.is_active else "Activate" }}</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding-top:4rem;padding-bottom:4rem">
+        <div class="empty-icon"><i class="fa-solid fa-users" aria-hidden="true"></i></div>
+        <div class="empty-title">No users yet</div>
+        <p>Users appear here after they register.</p>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

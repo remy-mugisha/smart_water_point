@@ -3,38 +3,54 @@
     <table class="table align-middle">
         <thead>
         <tr>
-            <th>ID</th>
+            <th>Water Point</th>
             <th>District</th>
             <th>Technology</th>
             <th>Status</th>
-            <th>Risk</th>
-            <th>AI Confidence</th>
-            <th>Population</th>
+            <th class="num">Risk</th>
+            <th>Confidence</th>
+            <th class="num">Population</th>
             <th>Updated</th>
         </tr>
         </thead>
         <tbody>
         {% for wp in water_points %}
-        <tr class="{% if wp.current_status == 'Non-Functional' %}table-danger{% elif wp.current_status == 'At Risk' %}table-warning{% elif wp.current_status == 'Functional' and wp.prediction_confidence == 'High' %}table-success{% endif %}">
-            <td>{{ wp.water_point_id }}</td>
+        <tr>
+            <td><a class="mono" href="{{ url_for('dashboard.water_point_detail', wp_id=wp.id) }}" style="font-weight:500">{{ wp.water_point_id }}</a></td>
             <td>{{ wp.district }}</td>
             <td>{{ wp.technology_type }}</td>
-            <td><span class="badge status-{{ wp.current_status|lower|replace(' ', '-') }}">{{ wp.current_status }}</span></td>
-            <td>{{ "%.0f"|format((wp.risk_probability or 0) * 100) }}%</td>
+            <td>
+                <span class="chip chip-{{ 'functional' if wp.current_status == 'Functional' else 'at-risk' if wp.current_status == 'At Risk' else 'non-functional' if wp.current_status == 'Non-Functional' else 'under-repair' }}">
+                    <span class="chip-dot {{ 'is-filled' if wp.current_status in ('Functional', 'Under Repair') else 'is-half' if wp.current_status == 'At Risk' else '' }}"></span>
+                    {{ wp.current_status }}
+                </span>
+            </td>
+            <td class="num">
+                <span class="{% if (wp.risk_probability or 0) >= 0.66 %}text-danger{% elif (wp.risk_probability or 0) >= 0.33 %}text-warning{% else %}text-success{% endif %}">
+                    {{ "%.0f"|format((wp.risk_probability or 0) * 100) }}%
+                </span>
+            </td>
             <td>
                 {% if wp.prediction_confidence %}
-                <span class="badge {% if wp.prediction_confidence == 'High' %}status-functional{% else %}status-at-risk{% endif %}">{{ wp.prediction_confidence }}</span>
+                <span class="chip chip-{{ 'functional' if wp.prediction_confidence == 'High' else 'at-risk' }}"><span class="chip-dot {{ 'is-filled' if wp.prediction_confidence == 'High' }}"></span>{{ wp.prediction_confidence }}</span>
                 {% else %}
-                <span class="form-hint">-</span>
+                <span class="form-hint">—</span>
                 {% endif %}
             </td>
-            <td>{{ wp.population_served or "-" }}</td>
-            <td>{{ wp.last_updated.strftime("%Y-%m-%d") if wp.last_updated else "-" }}</td>
+            <td class="num">{{ wp.population_served or "—" }}</td>
+            <td class="mono">{{ wp.last_updated.strftime("%Y-%m-%d") if wp.last_updated else "—" }}</td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
 {% else %}
-<p class="empty-state">No water points available yet.</p>
+<div class="empty-state">
+    <div class="empty-icon"><i class="fa-solid fa-droplet" aria-hidden="true"></i></div>
+    <div class="empty-title">This catchment is dry</div>
+    <p>No water points recorded yet. Upload the first dataset to begin monitoring.</p>
+    {% if upload_form or current_user.role in ('admin', 'district_technician', 'district_manager') %}
+    <a class="btn btn-primary mt-2" href="{{ url_for('dashboard.upload_data') }}"><i class="fa-solid fa-upload" aria-hidden="true"></i> Upload Data</a>
+    {% endif %}
+</div>
 {% endif %}

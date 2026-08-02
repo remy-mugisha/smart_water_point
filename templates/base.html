@@ -3,104 +3,213 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Smart Water Monitoring{% endblock %}</title>
+    <meta name="description" content="Amazi — AI-based water point failure prediction system for rural Rwanda.">
+    <title>{% block title %}Amazi · RWB Water Intelligence{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/amazi-mark.svg') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+    <link href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" rel="stylesheet">
+    <link href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}{% if current_user.is_authenticated and current_user.theme_preference == 'dark' %} theme-dark{% endif %}">
+
 {% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-semibold" href="{{ url_for('dashboard.index') }}">
-            <i class="fa-solid fa-droplet"></i> Smart Water
-        </a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
-            <span class="navbar-toggler-icon"></span>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div class="app-frame">
+    <header class="brandbar">
+        <button class="rail-toggle" type="button" aria-label="Open navigation" aria-controls="app-rail" aria-expanded="false" data-rail-toggle>
+            <i class="fa-solid fa-bars" aria-hidden="true"></i>
         </button>
-        <div id="mainNav" class="collapse navbar-collapse">
+
+        <a class="brand" href="{{ url_for('dashboard.index') }}">
+            <span class="brand-mark" aria-hidden="true">
+                <img src="{{ url_for('static', filename='images/amazi-mark.svg') }}" alt="">
+            </span>
+            <span>
+                <span class="brand-wordmark">Amazi</span>
+                <span class="brand-sub">RWB Water Intelligence</span>
+            </span>
+        </a>
+
+        <div class="brandbar-spacer"></div>
+
+        <div class="brandbar-context">
             {% if current_user.is_authenticated %}
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.map_view') }}">Map</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.water_points') }}">Water Points</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard.predict') }}">Predict</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('tasks.list_tasks') }}">Tasks</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('reports.index') }}">Reports</a></li>
-                {% if current_user.role == 'admin' %}
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}">Admin</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.technicians') }}">Technicians</a></li>
-                {% endif %}
-            </ul>
-            <div class="navbar-nav">
-                <a class="nav-link" href="{{ url_for('notifications.list_notifications') }}">
-                    <i class="fa-solid fa-bell"></i>
-                    {% if unread_notification_count %}<span class="badge bg-danger">{{ unread_notification_count }}</span>{% endif %}
-                </a>
+            <span class="context-pill" title="District scope">
+                <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+                {% if current_user.role == 'admin' %}{{ system_district }} scope{% else %}{{ current_user.district }}{% endif %}
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="brandbar-actions">
+            {% if current_user.is_authenticated %}
+            <a class="navicon" href="{{ url_for('notifications.list_notifications') }}" aria-label="Notifications">
+                <i class="fa-solid fa-bell" aria-hidden="true"></i>
+                {% if unread_notification_count %}<span class="count-bubble">{{ unread_notification_count }}</span>{% endif %}
+            </a>
+            <div class="dropdown">
+                {% set name_parts = current_user.full_name.split() %}
+                {% set initials = (name_parts[0][0] ~ (name_parts[-1][0] if name_parts|length > 1 else '')) | upper %}
                 {% set role_meta = {
-                    'admin': {'label': 'Admin', 'icon': 'fa-user-shield'},
-                    'district_manager': {'label': 'District Manager', 'icon': 'fa-user-tie'},
+                    'admin': {'label': 'Administrator', 'icon': 'fa-user-shield'},
+                    'district_manager': {'label': 'District Officer', 'icon': 'fa-user-tie'},
                     'district_technician': {'label': 'Technician', 'icon': 'fa-screwdriver-wrench'},
                     'viewer': {'label': 'Viewer', 'icon': 'fa-eye'}
                 } %}
                 {% set current_role = role_meta.get(current_user.role, {'label': current_user.role, 'icon': 'fa-user'}) %}
-                {% set name_parts = current_user.full_name.split() %}
-                {% set initials = (name_parts[0][0] ~ (name_parts[-1][0] if name_parts|length > 1 else '')) | upper %}
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 user-menu-toggle" href="#" id="userMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        {% if current_user.profile_image_url %}
-                        <img src="{{ current_user.profile_image_url }}" alt="" class="user-avatar-img">
-                        {% else %}
-                        <span class="user-avatar">{{ initials }}</span>
-                        {% endif %}
-                        <span class="user-menu-info">
-                            <span class="user-menu-name">{{ current_user.full_name }}</span>
-                            <span class="user-menu-role">{{ current_role.label }}</span>
-                        </span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                        <li><a class="dropdown-item" href="{{ url_for('auth.settings') }}"><i class="fa-solid fa-gear"></i> Settings</a></li>
-                        {% if current_user.role == 'admin' %}
-                        <li><a class="dropdown-item" href="{{ url_for('admin.audit_logs') }}"><i class="fa-solid fa-clipboard-list"></i> Audit Logs</a></li>
-                        {% endif %}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a></li>
-                    </ul>
-                </div>
-            </div>
-            {% else %}
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                <a class="user-pill dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">
+                    {% if current_user.profile_image_url %}
+                    <img src="{{ current_user.profile_image_url }}" alt="" class="user-avatar-img">
+                    {% else %}
+                    <span class="user-avatar" aria-hidden="true">{{ initials }}</span>
+                    {% endif %}
+                    <span class="user-menu-info">
+                        <span class="user-menu-name">{{ current_user.full_name }}</span>
+                        <span class="user-menu-role"><i class="fa-solid {{ current_role.icon }}" aria-hidden="true"></i> {{ current_role.label }}</span>
+                    </span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                    <li><a class="dropdown-item" href="{{ url_for('auth.settings') }}"><i class="fa-solid fa-gear" aria-hidden="true"></i> Settings</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Logout</a></li>
+                </ul>
             </div>
             {% endif %}
         </div>
+    </header>
+
+    <div class="app-body">
+        {% set ep = request.endpoint or '' %}
+        {% set is_dashboard = ep in ['dashboard.index', 'technician.dashboard', 'admin.dashboard'] %}
+        {% set is_map = ep in ['dashboard.map_view'] %}
+        {% set is_points = ep in ['dashboard.water_points', 'dashboard.water_point_detail'] %}
+        {% set is_predict = ep in ['dashboard.predict'] %}
+        {% set is_tasks = ep in ['tasks.list_tasks', 'tasks.task_detail', 'tasks.create_task'] %}
+        {% set is_notifications = ep in ['notifications.list_notifications'] %}
+        {% set is_reports = ep.startswith('reports.') %}
+        {% set is_districts = ep in ['dashboard.districts'] %}
+        {% set is_techs = ep.startswith('admin.technician') %}
+        {% set is_users = ep in ['admin.users'] %}
+        {% set is_audit = ep in ['admin.audit_logs', 'admin.report_logs'] %}
+        {% set is_model = ep in ['admin.model_performance'] %}
+
+        <div class="rail-overlay" data-rail-close></div>
+        <aside class="rail" id="app-rail" aria-label="Primary">
+            <nav>
+                <div class="rail-group">
+                    <div class="rail-group-label kicker">Operations</div>
+                    <a class="rail-link {% if is_dashboard %}active{% endif %}" href="{{ url_for('admin.dashboard') if current_user.role == 'admin' else url_for('dashboard.index') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-wave-square" aria-hidden="true"></i></span> Dashboard
+                    </a>
+                    <a class="rail-link {% if is_map %}active{% endif %}" href="{{ url_for('dashboard.map_view') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span> GIS Map
+                    </a>
+                    <a class="rail-link {% if is_points %}active{% endif %}" href="{{ url_for('dashboard.water_points') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-droplet" aria-hidden="true"></i></span> Water Points
+                    </a>
+                    <a class="rail-link {% if is_predict %}active{% endif %}" href="{{ url_for('dashboard.predict') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span> Prediction Center
+                    </a>
+                    <a class="rail-link {% if is_tasks %}active{% endif %}" href="{{ url_for('tasks.list_tasks') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-wrench" aria-hidden="true"></i></span> Maintenance
+                    </a>
+                    <a class="rail-link {% if is_notifications %}active{% endif %}" href="{{ url_for('notifications.list_notifications') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-bell" aria-hidden="true"></i></span> Notifications
+                        {% if unread_notification_count %}<span class="badge bg-danger ms-auto">{{ unread_notification_count }}</span>{% endif %}
+                    </a>
+                </div>
+
+                {% if current_user.role in ['admin', 'district_manager'] %}
+                <div class="rail-group">
+                    <div class="rail-group-label kicker">Administration</div>
+                    <a class="rail-link {% if is_reports %}active{% endif %}" href="{{ url_for('reports.index') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-file-lines" aria-hidden="true"></i></span> Reports &amp; Analytics
+                    </a>
+                    <a class="rail-link {% if is_districts %}active{% endif %}" href="{{ url_for('dashboard.districts') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i></span> Districts
+                    </a>
+                </div>
+                {% endif %}
+
+                {% if current_user.role == 'admin' %}
+                <div class="rail-group">
+                    <div class="rail-group-label kicker">System</div>
+                    <a class="rail-link {% if is_techs %}active{% endif %}" href="{{ url_for('admin.technicians') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i></span> Technicians
+                    </a>
+                    <a class="rail-link {% if is_users %}active{% endif %}" href="{{ url_for('admin.users') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-users" aria-hidden="true"></i></span> Users
+                    </a>
+                    <a class="rail-link {% if is_audit %}active{% endif %}" href="{{ url_for('admin.audit_logs') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i></span> Audit Logs
+                    </a>
+                    <a class="rail-link {% if is_model %}active{% endif %}" href="{{ url_for('admin.model_performance') }}">
+                        <span class="rail-icon"><i class="fa-solid fa-microscope" aria-hidden="true"></i></span> Model &amp; Settings
+                    </a>
+                </div>
+                {% endif %}
+            </nav>
+        </aside>
+
+        <main class="app-main" id="main-content" tabindex="-1">
+            <div class="flash-wrap">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+            </div>
+            {% block content %}{% endblock %}
+        </main>
     </div>
-</nav>
+</div>
 {% endblock %}
 
-{% block main_wrapper %}
-<main class="container-fluid py-4">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash-wrap">
-            {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
-</main>
-{% endblock %}
+{% block main_wrapper %}{% endblock %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const toggle = document.querySelector("[data-rail-toggle]");
+    if (!toggle) return;
+    const open = function () {
+        document.body.classList.add("rail-open");
+        toggle.setAttribute("aria-expanded", "true");
+    };
+    const close = function () {
+        document.body.classList.remove("rail-open");
+        toggle.setAttribute("aria-expanded", "false");
+    };
+    toggle.addEventListener("click", function (e) {
+        e.stopPropagation();
+        document.body.classList.contains("rail-open") ? close() : open();
+    });
+    document.querySelectorAll("[data-rail-close]").forEach(function (el) {
+        el.addEventListener("click", close);
+    });
+    document.querySelectorAll("#app-rail a").forEach(function (el) {
+        el.addEventListener("click", function () { if (window.innerWidth < 960) close(); });
+    });
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") close();
+    });
+})();
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

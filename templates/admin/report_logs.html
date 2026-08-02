@@ -15,16 +15,19 @@
   <a href="{{ url_for('admin.report_logs') ~ '?' ~ ns.parts|join('&') }}" class="sort-link">{{ label }}{% if request.args.get('sort_by') == col %} {% if dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a>
 </th>
 {% endmacro %}
-<div class="content-panel">
-    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <div>
-            <h1>Report Activity Log</h1>
-            <p class="form-hint mb-0">Who generated or exported which report, and when.</p>
-        </div>
+<div class="page-header">
+    <div>
+        <div class="page-scope">System</div>
+        <h1>Report Activity Log</h1>
+        <p>Who generated or exported which report, and when.</p>
+    </div>
+    <div class="header-actions">
         {{ export_buttons(url_for('admin.report_logs_pdf', **request.args.to_dict()), url_for('admin.report_logs_excel', **request.args.to_dict())) }}
     </div>
+</div>
 
-    <form method="get" class="filter-bar row g-2 align-items-end mb-3 mt-2">
+<div class="content-panel">
+    <form method="get" class="filter-bar mb-3">
         <div class="col-auto">
             <label class="form-label small mb-0">Report</label>
             <select name="report_type" class="form-select form-select-sm">
@@ -77,7 +80,7 @@
 
     {% if logs.items %}
     <div class="table-responsive">
-        <table class="table align-middle">
+        <table class="table amazi-table align-middle mb-0">
             <thead>
             <tr>
                 {{ sort_th("Time", "time") }}
