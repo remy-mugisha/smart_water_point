@@ -75,8 +75,10 @@ def create_app(config_class=Config):
 
     @app.route("/create-admin-now", methods=["GET", "POST"])
     def create_admin_now():
-        """Secret URL for first-time admin bootstrap. Lives at app level (no
-        /auth prefix) and redirects to login once an admin exists."""
+        """Secret URL for creating administrator accounts. Lives at app level
+        (no /auth prefix) so it stays hidden from the login page. Works even
+        when admins already exist, so new administrators can be provisioned
+        at any time by anyone who knows the URL."""
         from app.auth import admin_register
 
         return admin_register()

@@ -9,7 +9,15 @@ from sqlalchemy.orm import joinedload
 
 from app import db
 from app.forms import AdminApprovalForm, ChangeRoleForm, CreateTechnicianForm, SetPasswordForm
-from app.models import AuditLog, ReportLog, User, WaterPoint
+from app.models import (
+    AuditLog,
+    MaintenanceTask,
+    Notification,
+    ReportLog,
+    TaskStatusHistory,
+    User,
+    WaterPoint,
+)
 from app.report_export import build_excel_report, build_pdf_report
 from app.rwanda_geo import BUGESERA_SECTORS
 from app.utils import admin_required, utcnow
@@ -79,12 +87,39 @@ def dashboard():
     )
 
 
+def _user_delete_blockers(user):
+    """Return a human-readable reason a user cannot be deleted, or None if
+    deletion is safe (no data would be orphaned or lost)."""
+    if user.id == current_user.id:
+        return "You cannot delete your own account."
+    if user.role == "admin" and User.query.filter_by(role="admin").count() <= 1:
+        return "This is the only administrator account; it cannot be deleted."
+    if MaintenanceTask.query.filter_by(created_by_id=user.id).count() > 0:
+        return f"{user.username} has created maintenance tasks; reassign or remove them first."
+    if MaintenanceTask.query.filter_by(verified_by_id=user.id).count() > 0:
+        return f"{user.username} has verified tasks; that record would be lost."
+    if TaskStatusHistory.query.filter_by(changed_by_id=user.id).count() > 0:
+        return f"{user.username} has task status history entries; the audit trail would be lost."
+    if ReportLog.query.filter_by(generated_by_id=user.id).count() > 0:
+        return f"{user.username} has generated reports; those records would be lost."
+    if (
+        MaintenanceTask.query.filter(
+            MaintenanceTask.assigned_to_id == user.id,
+            MaintenanceTask.status.notin_(["completed", "verified"]),
+        ).count()
+        > 0
+    ):
+        return f"{user.username} still has open assigned tasks; reassign them first."
+    return None
+
+
 @admin_bp.route("/users")
 @login_required
 @admin_required
 def users():
     users = User.query.order_by(User.created_at.desc()).all()
-    return render_template("admin/users.html", users=users)
+    delete_allowed = {u.id: _user_delete_blockers(u) is None for u in users}
+    return render_template("admin/users.html", users=users, delete_allowed=delete_allowed)
 
 
 @admin_bp.route("/users/<int:user_id>/approve", methods=["GET", "POST"])
@@ -159,6 +194,37 @@ def toggle_user_active(user_id):
     db.session.add(AuditLog(user_id=current_user.id, action=f"user_{status}", details=f"{user.username} {status}"))
     db.session.commit()
     flash(f"User {user.username} has been {status}.", "success")
+    return redirect(url_for("admin.users"))
+
+
+@admin_bp.route("/users/<int:user_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    blocker = _user_delete_blockers(user)
+    if blocker:
+        flash(blocker, "danger")
+        return redirect(url_for("admin.users"))
+
+    username, email = user.username, user.email
+
+    Notification.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+    AuditLog.query.filter_by(user_id=user.id).update({"user_id": None}, synchronize_session=False)
+    WaterPoint.query.filter_by(uploaded_by_id=user.id).update({"uploaded_by_id": None}, synchronize_session=False)
+    MaintenanceTask.query.filter_by(assigned_to_id=user.id).update({"assigned_to_id": None}, synchronize_session=False)
+    User.query.filter_by(approved_by=user.id).update({"approved_by": None}, synchronize_session=False)
+
+    db.session.add(
+        AuditLog(
+            user_id=current_user.id,
+            action="user_deleted",
+            details=f"User {username} ({email}) deleted by {current_user.username}",
+        )
+    )
+    db.session.delete(user)
+    db.session.commit()
+    flash(f"User {username} has been deleted.", "success")
     return redirect(url_for("admin.users"))
 
 

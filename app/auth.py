@@ -29,21 +29,14 @@ def _generate_username(email):
     return candidate
 
 
-def _admin_exists():
-    return User.query.filter_by(role="admin").first() is not None
-
-
 def admin_register():
-    """Bootstrap route: creates the first administrator only.
+    """Bootstrap route: creates an administrator account.
 
     Mounted at the secret /create-admin-now URL in app/__init__.py rather than
     on the public auth blueprint, so the form isn't discoverable from the
-    login page. Once an admin exists it redirects to login.
+    login page. It deliberately works even when admins already exist, so a new
+    administrator can be provisioned at any time by anyone who knows the URL.
     """
-    if _admin_exists():
-        flash("An administrator already exists. Contact your system admin for access.", "warning")
-        return redirect(url_for("auth.login"))
-
     form = AdminBootstrapForm()
     if form.validate_on_submit():
         email = form.email.data.strip().lower()
@@ -65,7 +58,7 @@ def admin_register():
             AuditLog(
                 user_id=admin.id,
                 action="admin_registered",
-                details=f"First administrator {admin.full_name} ({admin.email}) registered",
+                details=f"Administrator {admin.full_name} ({admin.email}) registered via /create-admin-now",
             )
         )
         db.session.commit()

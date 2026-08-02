@@ -4,7 +4,7 @@
 {% block body_class %}auth-page{% endblock %}
 {% block navbar %}{% endblock %}
 {% block main_wrapper %}
-{% call auth_shell("First run", "Create Administrator", "Set up the first admin account for this system.") %}
+{% call auth_shell("Administrator", "Create Administrator", "Provision a new administrator account for this system.") %}
 <form method="post" novalidate>
     {{ form.hidden_tag() }}
     <div class="mb-3">

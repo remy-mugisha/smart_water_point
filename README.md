@@ -20,8 +20,10 @@ If `python` is not available on PATH, install Python from python.org or enable t
 
 Open `http://127.0.0.1:5000`.
 
-The first administrator is bootstrapped via the hidden `/create-admin-now`
-URL. Later users must be approved from the admin user management page.
+Administrator accounts are provisioned via the hidden `/create-admin-now`
+URL, which works even after admins already exist (anyone who knows the URL can
+create a new administrator). Later users must be approved from the admin user
+management page.
 
 ## Upload Format
 

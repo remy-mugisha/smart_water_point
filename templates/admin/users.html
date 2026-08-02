@@ -48,6 +48,12 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button class="btn btn-ghost btn-sm {{ 'text-danger' if user.is_active }}" type="submit" {% if user.is_active %}onclick="return confirm('Deactivate {{ user.full_name }}? They will not be able to log in.')"{% endif %}>{{ "Deactivate" if user.is_active else "Activate" }}</button>
                     </form>
+                    {% if delete_allowed.get(user.id) %}
+                    <form class="d-inline" method="post" action="{{ url_for('admin.delete_user', user_id=user.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-ghost btn-sm text-danger" type="submit" onclick="return confirm('Delete {{ user.full_name }} permanently? This cannot be undone.')" title="Permanently delete this user"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Delete</button>
+                    </form>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

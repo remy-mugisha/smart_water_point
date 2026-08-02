@@ -122,8 +122,8 @@ def test_first_user_can_register_as_admin(app, client):
         assert admin.must_change_password is False
 
 
-def test_register_blocked_when_admin_exists(app, client):
-    """Once an admin exists, public registration is disabled."""
+def test_admin_creation_allowed_when_admin_exists(app, client):
+    """/create-admin-now keeps working even when admins already exist."""
     with app.app_context():
         make_user(db, "admin", "Bugesera", "admin1")
 
@@ -138,12 +138,14 @@ def test_register_blocked_when_admin_exists(app, client):
         follow_redirects=True,
     )
     assert resp.status_code == 200
-    assert b"An administrator already exists" in resp.data
+    assert b"Administrator account created" in resp.data
     with app.app_context():
         from app.models import User
 
         user = db.session.query(User).filter_by(email="admin2@example.rw").first()
-        assert user is None, "No user should be created once an admin exists"
+        assert user is not None, "A second admin should be created even when one already exists"
+        assert user.role == "admin"
+        assert user.is_active is True
 
 
 def test_admin_can_reset_user_password(app, client):
