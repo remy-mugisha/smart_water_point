@@ -102,7 +102,12 @@ def create_app(config_class=Config):
 
         from app.models import Notification
 
-        if current_user.is_authenticated:
+        try:
+            authenticated = current_user.is_authenticated
+        except Exception:
+            authenticated = False
+
+        if authenticated:
             count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
         else:
             count = 0

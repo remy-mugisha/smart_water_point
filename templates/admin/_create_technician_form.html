@@ -1,4 +1,4 @@
-<form method="post" novalidate id="createTechnicianForm">
+<form method="post" novalidate id="createTechnicianForm" action="{{ url_for('admin.create_technician') }}">
     {{ form.hidden_tag() }}
     <div class="row">
         <div class="col-md-6 mb-3">
