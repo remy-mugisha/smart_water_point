@@ -41,7 +41,7 @@ app/
                                 (unread notifications, system district),
                                 hidden /create-admin-now route + decoy URLs
   models.py                     SQLAlchemy models + Enums (UserRole, WaterPointStatus,
-                                TaskPriority, TaskStatus) — 10 tables
+                                 TaskPriority, TaskStatus) — 9 active tables
   auth.py                        register / login / logout / profile / settings /
                                 change-password / temp-password flow
   admin.py                       admin dashboard, user approval/role/toggle/delete,
@@ -179,7 +179,7 @@ The system predicts each water point's failure risk with a **Logistic Regression
 
 **Explainability:** the `risk_factors_for()` function in `dashboard.py` decomposes a single water point's prediction into its top contributing factors using the model's coefficients — so a technician doesn't just see "82% risk," they see "age +24y (↑ risk), population 1,200 (↑), rainfall 20mm (↓)." This addresses the "black box" concern head-on.
 
-**Honest limitations:** the pipeline is real and fully tested (`tests/test_ml.py`, 12 tests covering feature engineering, training, inference, cache reload, and 1000-row batch performance), but training currently runs on a small synthetic sample (`data/raw/sample_training_data.csv`, 220 rows) rather than verified WASAC field records. The full methodology, results, and limitations are documented in `ML_REPORT_SECTION.md`.
+**Honest limitations:** the pipeline is real and fully tested (`tests/test_ml.py`, 15 tests covering feature engineering, training, inference, cache reload-on-mtime-change, and 1000-row batch performance), but training currently runs on a small synthetic sample (`data/raw/sample_training_data.csv`, 220 rows) rather than verified WASAC field records. The full methodology, results, and limitations are documented in `ML_REPORT_SECTION.md`.
 
 ### Maintenance task workflow
 
@@ -196,7 +196,7 @@ Six report types, each with filters, pagination, Chart.js visualizations, and PD
 5. **District/Sector Summary** — aggregate health by district (drill-down to sector), showing total/functional/at-risk/maintenance-case counts with a district risk-ranked bar chart.
 6. **Source Validation** — water points with no linked water source, surfaced for data-quality remediation.
 
-All the data-builder logic (`report_queries.py`) is separated from the Flask routes — these are pure functions that take a `filters` dict and return a plain dict, so they're testable as Python with no request/response cycle involved (16 of the 70 tests exercise them directly). The shared `SimplePagination` class duck-types to Flask-SQLAlchemy's `Pagination` so the same template partial works for both DB-paginated admin lists and in-memory-paginated report lists.
+All the data-builder logic (`report_queries.py`) is separated from the Flask routes — these are pure functions that take a `filters` dict and return a plain dict, so they're testable as Python with no request/response cycle involved. The 22 report tests exercise them through the Flask test client, while the 15 ML tests directly import `ml_features` and `ml_inference` as plain Python modules. The shared `SimplePagination` class duck-types to Flask-SQLAlchemy's `Pagination` so the same template partial works for both DB-paginated admin lists and in-memory-paginated report lists.
 
 **Report audit trail:** every view, PDF export, or Excel export writes a `ReportLog` row (who, what, when, filters, row count), surfaced via the admin "Report Activity Log" page with the same filter/sort/export machinery as the audit-log viewer.
 
@@ -232,9 +232,9 @@ I've grouped these by how much they actually matter for an academic project.
 
 ### Worth fixing (small, contained, likely already worth mentioning in defense)
 
-- **`datetime.utcnow()` deprecation.** The codebase now uses a `utcnow()` helper in `utils.py` that wraps `datetime.now(timezone.utc).replace(tzinfo=None)` — this keeps naive timestamps (matching SQLite's storage) while avoiding the deprecation warning. However, a few `datetime.utcnow()` call-sites may still linger; the test suite currently emits 55 warnings, mostly `LegacyAPIWarning` for `Query.get()` (the pre-SQLAlchemy-2.0 query API). Migrating `query.get()` → `db.session.get()` is a mechanical find-replace across `admin.py` and `tasks.py`.
-- **Duplicate `predict_batch`/legacy inference paths.** `dashboard.py` still defines `load_prediction_model()` and `predict_risk()` (the old single-model-load + threshold-based binary label path), used only by the `/api/post` endpoint. The newer `ml_inference.py` module is the canonical path for everything else. Consolidating `/api/predict` to use `ml_inference.predict_batch` would remove 60 lines of redundant code — worth noting if asked about consistency.
-- **`_index_context` `dict()` bug.** The dashboard's district health aggregation once did `dict()` on 3-tuples from a `GROUP BY` query, which silently dropped data. Flagged in `DESIGN_SYSTEM.md` as a regression fix; verify the current version handles this correctly.
+- **`datetime.utcnow()` deprecation.** The codebase now uses a `utcnow()` helper in `utils.py` that wraps `datetime.now(timezone.utc).replace(tzinfo=None)` — this keeps naive timestamps (matching SQLite's storage) while avoiding the deprecation warning. However, a few `datetime.utcnow()` call-sites may still linger; the test suite currently emits 55 warnings, mostly `LegacyAPIWarning` for `Query.get()` (the pre-SQLAlchemy-2.0 query API). Migrating `query.get()` → `db.session.get()` is a mechanical find-replace across `admin.py` (5 call-sites), `tasks.py` (7 call-sites), `notifications.py` (1 call-site), and `app/services/technician_service.py` (1 call-site).
+- **Duplicate `predict_batch`/legacy inference paths.** `dashboard.py` still defines `load_prediction_model()` and `predict_risk()` (the old single-model-load + threshold-based binary label path), used only by the `/api/predict` endpoint. The newer `ml_inference.py` module is the canonical path for everything else. Consolidating `/api/predict` to use `ml_inference.predict_batch` would remove redundant code — worth noting if asked about consistency.
+- **`_index_context` `dict()` bug.** The dashboard's district health aggregation once did `dict()` on 3-tuples from a `GROUP BY` query, which silently dropped data. This has been fixed — the current version uses a dict comprehension that correctly maps `(district, status)` pairs to counts without losing data.
 
 ### Worth mentioning as known, deliberate scope boundaries
 
@@ -244,9 +244,9 @@ I've grouped these by how much they actually matter for an academic project.
 
 ### Worth doing if you have time before submission
 
-- **Consolidate the remaining inline district checks.** `scoped_by_district()` is the shared helper, but `dashboard.py:water_point_detail` and `api.py:update_status` still do inline `current_user.district != water_point.district` checks. A single `user_can_access_district()` call (already in `utils.py`) would be cleaner and more defensible if asked "how do you extend this to a 6th district."
-- **Migrate off `Query.get()`.** 6 call-sites in `admin.py` (e.g., `User.query.get_or_404`) and `tasks.py` use the deprecated pre-2.0 API. Switching to `db.session.get()` removes the `LegacyAPIWarning` noise — an easy demonstration of keeping the codebase actively maintained.
-- **Single-point predict page vs. `/api/predict` duplication.** The `/dashboard/predict` route (single-point, uses `ml_inference.predict_single`) and the `/api/predict` endpoint (batch, uses the legacy `predict_risk`) overlap in purpose. If the API is consumed by an external integration, consider unifying both to `ml_inference.predict_batch` so there's one prediction interface.
+- **Consolidate the remaining inline district checks.** `scoped_by_district()` is the shared helper, but `dashboard.py:water_point_detail` still does an inline `current_user.district != water_point.district` check. `api.py:update_status` was already consolidated to use `user_can_access_district()`. A single `user_can_access_district()` call (already in `utils.py`) for the remaining inline check would be cleaner and more defensible if asked "how do you extend this to a 6th district."
+- **Migrate off `Query.get()`.** 14 deprecated usages across `admin.py` (5 `get_or_404` call-sites), `tasks.py` (7 `get_or_404` call-sites), `notifications.py` (1 `get_or_404` call-site), and `app/services/technician_service.py` (1 plain `.get()` call-site). Switching to `db.session.get()` removes the `LegacyAPIWarning` noise — an easy demonstration of keeping the codebase actively maintained.
+- **Single-point predict page vs. `/api/predict` duplication.** The `/dashboard/predict` route (single-point, uses `ml_inference.predict_single`) and the `/api/predict` endpoint (loops point-by-point calling the legacy `predict_risk`) overlap in purpose. Neither uses the vectorized `ml_inference.predict_batch` path that upload and the admin "Re-run Predictions" button already use. If the API is consumed by an external integration, consider unifying both to `ml_inference.predict_batch` so there's one prediction interface.
 
 ### Not worth doing for this project
 

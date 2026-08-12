@@ -29,6 +29,9 @@ class Config:
     MAIL_USERNAME = os.environ.get("SMTP_USER")
     MAIL_PASSWORD = os.environ.get("SMTP_PASS")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_FROM", "noreply@smartwater.rw")
+    # Brevo HTTP API key (starts with "xkeysib-"); used instead of SMTP because
+    # Render's free tier blocks outbound SMTP.
+    BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
     # Set MAIL_DEBUG=1 in .env to print the raw SMTP conversation (incl. AUTH)
     # to the terminal for troubleshooting. Turn off in production.
     MAIL_DEBUG = os.environ.get("MAIL_DEBUG", "0") == "1"
