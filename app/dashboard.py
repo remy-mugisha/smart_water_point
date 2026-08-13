@@ -582,6 +582,10 @@ def value_or_none(value):
 
 
 def load_prediction_model():
+    from app.ml_inference import is_model_enabled
+
+    if not is_model_enabled():
+        return None
     model_path = Path("models") / "water_point_model.pkl"
     if not model_path.exists():
         return None

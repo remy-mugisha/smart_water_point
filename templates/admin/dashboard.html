@@ -8,6 +8,19 @@
         <p>User approvals, system activity, and water point coverage.</p>
     </div>
     <div class="header-actions">
+        <span class="context-pill" style="border-color:var(--color-line-strong);color:var(--color-text);background:var(--color-surface)">
+            <span class="ai-dot {{ '' if model_available else 'is-off' }}" aria-hidden="true"></span>
+            {{ 'Model online' if model_available else 'Model offline' }}
+        </span>
+        <form class="d-inline" method="post" action="{{ url_for('admin.toggle_model') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ url_for('admin.dashboard') }}">
+            {% if model_enabled %}
+            <button class="btn btn-danger" type="submit" name="action" value="off"><i class="fa-solid fa-power-off" aria-hidden="true"></i> Turn Model Off</button>
+            {% else %}
+            <button class="btn btn-success" type="submit" name="action" value="on"><i class="fa-solid fa-power-off" aria-hidden="true"></i> Turn Model On</button>
+            {% endif %}
+        </form>
         <a class="btn btn-primary" href="{{ url_for('admin.users') }}"><i class="fa-solid fa-users" aria-hidden="true"></i> Manage Users</a>
     </div>
 </div>
