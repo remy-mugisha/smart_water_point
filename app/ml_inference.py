@@ -55,10 +55,16 @@ class _ModelCache:
 
 _cache = _ModelCache()
 
-# Admin testing switch. When False the model is "offline": is_model_available()
-# reports False and predict_single/predict_batch return their no-model
-# placeholder so callers degrade gracefully. The cached model is kept so
-# flipping back online is instant.
+# =============================================================================
+# Admin testing switch (toggle feature) — DISABLED by commenting out.
+# Re-enable by uncommenting is_model_enabled()/toggle_model() below and the
+# `if not MODEL_ENABLED` guards in is_model_available/predict_single/
+# predict_batch, then restore the toggle route and template buttons.
+# =============================================================================
+# When False the model is "offline": is_model_available() reports False and
+# predict_single/predict_batch return their no-model placeholder so callers
+# degrade gracefully. The cached model is kept so flipping back online is
+# instant.
 MODEL_ENABLED = True
 
 
@@ -81,27 +87,31 @@ def _load_if_needed():
 
 
 def is_model_available() -> bool:
-    if not MODEL_ENABLED:
-        return False
+    # if not MODEL_ENABLED:
+    #     return False
     model, _ = _load_if_needed()
     return model is not None
 
 
-def is_model_enabled() -> bool:
-    return MODEL_ENABLED
-
-
-def toggle_model(enabled: bool) -> bool:
-    """Enable or disable predictions without discarding the cached model.
-
-    Disabled (offline) mode makes is_model_available() report False and makes
-    predict_single/predict_batch return their no-model placeholder, so callers
-    degrade gracefully while the admin testing switch is off.
-    """
-    global MODEL_ENABLED
-    MODEL_ENABLED = bool(enabled)
-    logger.info("Prediction model %s", "enabled" if MODEL_ENABLED else "disabled")
-    return MODEL_ENABLED
+# -----------------------------------------------------------------------------
+# Toggle feature — DISABLED (commented out). Keep MODEL_ENABLED = True above so
+# the model stays online by default.
+# -----------------------------------------------------------------------------
+# def is_model_enabled() -> bool:
+#     return MODEL_ENABLED
+#
+#
+# def toggle_model(enabled: bool) -> bool:
+#     """Enable or disable predictions without discarding the cached model.
+#
+#     Disabled (offline) mode makes is_model_available() report False and makes
+#     predict_single/predict_batch return their no-model placeholder, so callers
+#     degrade gracefully while the admin testing switch is off.
+#     """
+#     global MODEL_ENABLED
+#     MODEL_ENABLED = bool(enabled)
+#     logger.info("Prediction model %s", "enabled" if MODEL_ENABLED else "disabled")
+#     return MODEL_ENABLED
 
 
 def model_metadata() -> Optional[dict]:
@@ -135,13 +145,12 @@ def predict_single(row: Any, catchment_pressure: float = 0.0) -> Optional[Predic
     """Predict for one water point. `row` may be a dict, pandas Series, or an
     object exposing year_installed/population_served/monthly_rainfall/
     technology_type attributes (a WaterPoint instance satisfies this).
-    Returns None (with a warning logged) if no trained model is available or
-    the model is offline — callers must treat prediction as optional, never
-    load-bearing.
+    Returns None (with a warning logged) if no trained model is available —
+    callers must treat prediction as optional, never load-bearing.
     """
-    if not MODEL_ENABLED:
-        logger.warning("predict_single called but the model is offline; skipping.")
-        return None
+    # if not MODEL_ENABLED:
+    #     logger.warning("predict_single called but the model is offline; skipping.")
+    #     return None
     model, metadata = _load_if_needed()
     if model is None:
         logger.warning("predict_single called but no trained model is available; skipping.")
@@ -175,15 +184,15 @@ def predict_batch(df: pd.DataFrame) -> pd.DataFrame:
     Expects (optionally missing) columns: year_installed, population_served,
     monthly_rainfall, technology_type, catchment_pressure. Returns a copy of
     df with risk_probability, predicted_status, prediction_confidence added
-    (all NaN/None if no model is available or the model is offline).
+    (all NaN/None if no model is available).
     """
     result = df.copy()
-    if not MODEL_ENABLED:
-        logger.warning("predict_batch called but the model is offline; skipping %d rows.", len(df))
-        result["risk_probability"] = None
-        result["predicted_status"] = None
-        result["prediction_confidence"] = None
-        return result
+    # if not MODEL_ENABLED:
+    #     logger.warning("predict_batch called but the model is offline; skipping %d rows.", len(df))
+    #     result["risk_probability"] = None
+    #     result["predicted_status"] = None
+    #     result["prediction_confidence"] = None
+    #     return result
     model, metadata = _load_if_needed()
     if model is None:
         logger.warning("predict_batch called but no trained model is available; skipping %d rows.", len(df))

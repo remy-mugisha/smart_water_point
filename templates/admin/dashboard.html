@@ -8,6 +8,8 @@
         <p>User approvals, system activity, and water point coverage.</p>
     </div>
     <div class="header-actions">
+        {# Toggle feature — DISABLED (commented out). Restore together with the
+           ml_inference.py toggle functions and the admin.toggle_model route.
         <span class="context-pill" style="border-color:var(--color-line-strong);color:var(--color-text);background:var(--color-surface)">
             <span class="ai-dot {{ '' if model_available else 'is-off' }}" aria-hidden="true"></span>
             {{ 'Model online' if model_available else 'Model offline' }}
@@ -21,6 +23,7 @@
             <button class="btn btn-success" type="submit" name="action" value="on"><i class="fa-solid fa-power-off" aria-hidden="true"></i> Turn Model On</button>
             {% endif %}
         </form>
+        #}
         <a class="btn btn-primary" href="{{ url_for('admin.users') }}"><i class="fa-solid fa-users" aria-hidden="true"></i> Manage Users</a>
     </div>
 </div>

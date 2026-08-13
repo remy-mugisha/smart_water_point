@@ -77,7 +77,8 @@ def _apply_sort(query, args, columns, default="time", tie_breaker=None):
 @login_required
 @admin_required
 def dashboard():
-    from app.ml_inference import is_model_available, is_model_enabled
+    # from app.ml_inference import is_model_available, is_model_enabled
+    from app.ml_inference import is_model_available
 
     return render_template(
         "admin/dashboard.html",
@@ -86,28 +87,32 @@ def dashboard():
         total_water_points=WaterPoint.query.count(),
         at_risk_points=WaterPoint.query.filter_by(current_status="At Risk").count(),
         recent_logs=AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(20).all(),
-        model_enabled=is_model_enabled(),
+        # model_enabled=is_model_enabled(),
         model_available=is_model_available(),
     )
 
 
-@admin_bp.route("/model/toggle", methods=["POST"])
-@login_required
-@admin_required
-def toggle_model():
-    from app.ml_inference import is_model_enabled, toggle_model as set_model_enabled
-
-    action = request.form.get("action")
-    next_url = request.form.get("next") or url_for("admin.dashboard")
-    if action == "off":
-        set_model_enabled(False)
-        flash("Model is offline. Predictions are paused.", "warning")
-    elif action == "on":
-        set_model_enabled(True)
-        flash("Model is online. Predictions resumed.", "success")
-    else:
-        flash("Invalid model toggle action.", "danger")
-    return redirect(next_url)
+# -----------------------------------------------------------------------------
+# Toggle feature — DISABLED (commented out). Uncomment together with the
+# ml_inference.py toggle functions and the admin/dashboard.html buttons.
+# -----------------------------------------------------------------------------
+# @admin_bp.route("/model/toggle", methods=["POST"])
+# @login_required
+# @admin_required
+# def toggle_model():
+#     from app.ml_inference import is_model_enabled, toggle_model as set_model_enabled
+#
+#     action = request.form.get("action")
+#     next_url = request.form.get("next") or url_for("admin.dashboard")
+#     if action == "off":
+#         set_model_enabled(False)
+#         flash("Model is offline. Predictions are paused.", "warning")
+#     elif action == "on":
+#         set_model_enabled(True)
+#         flash("Model is online. Predictions resumed.", "success")
+#     else:
+#         flash("Invalid model toggle action.", "danger")
+#     return redirect(next_url)
 
 
 def _user_delete_blockers(user):
