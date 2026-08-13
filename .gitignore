@@ -6,5 +6,5 @@ smart_water.db
 instance/
 data/uploaded/*
 !data/uploaded/.gitkeep
-models/*.pkl
+# models/*.pkl
 !models/.gitkeep

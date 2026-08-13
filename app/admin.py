@@ -344,6 +344,30 @@ def resend_credentials(user_id):
     return redirect(url_for("admin.technicians"))
 
 
+@admin_bp.route("/debug/models")
+@login_required
+@admin_required
+def debug_models():
+    models_dir = Path("models")
+    files = sorted(
+        (p.name, p.stat().st_size, p.stat().st_mtime)
+        for p in models_dir.iterdir()
+        if p.is_file()
+    ) if models_dir.exists() else None
+    return json.dumps(
+        {
+            "cwd": str(Path.cwd()),
+            "models_dir_exists": models_dir.exists(),
+            "models_dir_absolute": str(models_dir.resolve()) if models_dir.exists() else None,
+            "files": [
+                {"name": name, "size_bytes": size, "mtime": mtime}
+                for name, size, mtime in (files or [])
+            ],
+        },
+        indent=2,
+    )
+
+
 @admin_bp.route("/model-performance")
 @login_required
 @admin_required
