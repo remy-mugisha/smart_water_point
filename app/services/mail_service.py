@@ -1,9 +1,5 @@
-﻿import os
-
-import requests
-from flask import current_app, render_template
-
-BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email"
+﻿from flask import current_app, render_template
+from flask_mail import Message
 
 
 def _masked(value):
@@ -31,66 +27,48 @@ def log_smtp_config():
 
 def smtp_error_hint(exc):
     text = str(exc)
-    if "Brevo" in text or "api key" in text.lower():
-        return (
-            "Brevo HTTP API error. Verify BREVO_API_KEY is set in the Render "
-            "environment (starts with 'xkeysib-') and that the sender address "
-            "(MAIL_FROM / MAIL_DEFAULT_SENDER) is verified in the Brevo dashboard "
-            "(Account > Senders)."
-        )
     if "535" in text or "Authentication" in text:
         return (
-            "SMTP login rejected (535). SMTP_USER must be the Brevo account login email "
-            "and SMTP_PASS the current SMTP key from the Brevo dashboard (SMTP & API > SMTP). "
-            "Note: a regenerated SMTP key invalidates the old one. Restart the server after "
-            "editing .env - the reloader does not watch .env."
+            "SMTP login rejected (535). SMTP_USER must be a Gmail address and SMTP_PASS "
+            "the 16-character App Password created for it (Google Account > Security > "
+            "2-Step Verification > App passwords). Note: a revoked App Password invalidates "
+            "the old one. Restart the server after editing .env - the reloader does not "
+            "watch .env."
         )
     if any(token in text for token in ("550", "553", "Sender", "5.7.1")):
         return (
-            "Sender address rejected. The MAIL_FROM domain must be verified in the Brevo "
-            "dashboard (Account > Senders), or use b3e2a0001@smtp-brevo.com to test."
+            "Sender address rejected. MAIL_FROM must be your own Gmail address (the same "
+            "account used for SMTP_USER) - Gmail does not allow sending from a different "
+            "address."
         )
     return "Check network access and that SMTP_HOST/SMTP_PORT are reachable."
 
 
-def send_email_via_brevo(to_email, to_name, subject, html_content):
-    """Send an HTML email via Brevo's REST API over HTTPS (not SMTP).
+def send_email(to_email, to_name, subject, html_content):
+    """Send an HTML email via SMTP (Gmail) using Flask-Mail.
 
-    Raises on any failure (missing config, network error, or non-2xx response)
+    Raises on any failure (missing config, network error, or SMTP error)
     so existing try/except / audit-log / flash-message handling keeps working.
     """
-    api_key = current_app.config.get("BREVO_API_KEY") or os.environ.get("BREVO_API_KEY")
-    if not api_key:
-        raise RuntimeError("BREVO_API_KEY is not configured - add it to the Render environment variables.")
-
-    sender_email = current_app.config.get("MAIL_DEFAULT_SENDER")
-    if not sender_email:
-        raise RuntimeError("MAIL_DEFAULT_SENDER / MAIL_FROM is not configured.")
-
-    response = requests.post(
-        BREVO_SEND_URL,
-        headers={
-            "api-key": api_key,
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        },
-        json={
-            "sender": {
-                "email": sender_email,
-                "name": current_app.config.get("APP_NAME", "Smart Water Point Monitoring System"),
-            },
-            "to": [{"email": to_email, "name": to_name}],
-            "subject": subject,
-            "htmlContent": html_content,
-        },
-        timeout=30,
-    )
-    try:
-        response.raise_for_status()
-    except requests.HTTPError as exc:
+    if not current_app.config.get("MAIL_USERNAME") or not current_app.config.get("MAIL_PASSWORD"):
         raise RuntimeError(
-            f"Brevo API returned HTTP {response.status_code}: {response.text}"
-        ) from exc
+            "SMTP_USER / SMTP_PASS are not configured - add them to the environment "
+            "variables (Gmail address + App Password)."
+        )
+
+    sender = current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get("MAIL_USERNAME")
+    if not sender:
+        raise RuntimeError("MAIL_FROM is not configured.")
+
+    from app import mail
+
+    msg = Message(
+        subject=subject,
+        recipients=[to_email],
+        html=html_content,
+        sender=sender,
+    )
+    mail.send(msg)
 
 
 def send_welcome_email(recipient_email, recipient_name, temp_password, login_url):
@@ -103,7 +81,7 @@ def send_welcome_email(recipient_email, recipient_name, temp_password, login_url
             login_url=login_url,
             app_name=current_app.config.get("APP_NAME", "Smart Water Point Monitoring System"),
         )
-        send_email_via_brevo(
+        send_email(
             to_email=recipient_email,
             to_name=recipient_name,
             subject=f"Welcome to {current_app.config.get('APP_NAME', 'Smart Water Monitoring')}",
