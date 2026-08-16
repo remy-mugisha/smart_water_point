@@ -1368,6 +1368,8 @@ body.theme-dark .riverline { background: var(--res-800); }
   border: 2px solid #fff;
   box-shadow: 0 1px 6px rgba(4,41,46,0.4);
 }
+.marker-cluster-amazi.is-risk { background: var(--risk-600); }
+.marker-cluster-amazi.is-crit { background: var(--crit-600); }
 
 .amazi-legend-dot {
   display: inline-block;

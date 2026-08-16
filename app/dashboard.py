@@ -205,12 +205,26 @@ def dashboard():
 @dashboard_bp.route("/map")
 @login_required
 def map_view():
-    points = scoped_water_points().all()
-    districts = sorted({wp.district for wp in points})
+    from app.settings import get_setting
+
+    from app.rwanda_geo import BUGESERA_BOUNDARY, BUGESERA_DISTRICT
+
+    # The GIS map always shows the case-study district (Bugesera) so that every
+    # pin is scoped to one territory, for admins and district staff alike.
+    default_district = get_setting("default_district", BUGESERA_DISTRICT)
+    points = (
+        scoped_water_points()
+        .filter(WaterPoint.district == default_district)
+        .order_by(WaterPoint.water_point_id)
+        .all()
+    )
+    sectors = sorted({wp.sector for wp in points if wp.sector})
     return render_template(
         "dashboard/map.html",
         water_points=points,
-        districts=districts,
+        district=default_district,
+        sectors=sectors,
+        boundary=BUGESERA_BOUNDARY,
         model_available=ml_inference.is_model_available(),
     )
 

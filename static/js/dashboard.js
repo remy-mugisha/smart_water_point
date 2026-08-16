@@ -1,9 +1,16 @@
-/* Amazi GIS map engine.
-   Droplet markers, marker clusters, status/district/risk filters,
-   district footprints, rainfall overlay, and detail popups. */
+/* Amazi GIS map engine — Bugesera-scoped.
+   Rebuilt from scratch: the map is locked to the case-study district
+   (Bugesera) with a real district boundary overlay, risk-coloured marker
+   clusters, search/status/risk/sector filters, rainfall overlay, and a
+   live count bar. Data comes from window.AMAZI_MAP set by map.html. */
 (function () {
     const mapEl = document.getElementById("map");
-    if (!mapEl || typeof L === "undefined" || typeof points === "undefined") return;
+    const cfg = window.AMAZI_MAP;
+    if (!mapEl || typeof L === "undefined" || !cfg || !Array.isArray(cfg.points)) return;
+
+    const points = cfg.points;
+    const district = cfg.district;
+    const boundary = Array.isArray(cfg.boundary) ? cfg.boundary : [];
 
     const STATUS_COLORS = {
         "Functional": "#16794a",
@@ -12,23 +19,37 @@
         "Under Repair": "#46799a"
     };
 
-    const map = L.map("map", { zoomControl: false });
+    const districtBounds = boundary.length
+        ? L.latLngBounds(boundary.map(function (ll) { return [ll[0], ll[1]]; }))
+        : L.latLngBounds([[latMin(), lngMin()], [latMax(), lngMax()]]);
+
+    function latMin() { return Math.min.apply(null, points.map(function (p) { return p.lat; })); }
+    function lngMin() { return Math.min.apply(null, points.map(function (p) { return p.lng; })); }
+    function latMax() { return Math.max.apply(null, points.map(function (p) { return p.lat; })); }
+    function lngMax() { return Math.max.apply(null, points.map(function (p) { return p.lng; })); }
+
+    const map = L.map("map", {
+        zoomControl: false,
+        maxBounds: districtBounds.pad(0.12),
+        maxBoundsViscosity: 1.0
+    });
     L.control.zoom({ position: "bottomright" }).addTo(map);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "&copy; OpenStreetMap contributors"
     }).addTo(map);
 
+    // cluster layer with risk-aware colouring
     const clusterGroup = L.markerClusterGroup({
         showCoverageOnHover: false,
         maxClusterRadius: 42,
         iconCreateFunction: function (cluster) {
             let cls = "marker-cluster-amazi";
             const children = cluster.getAllChildMarkers();
-            const riskCount = children.filter(function (m) { return (m.__risk || 0) >= 0.33; }).length;
-            const critCount = children.filter(function (m) { return (m.__risk || 0) >= 0.66; }).length;
-            if (critCount > 0) cls += " is-crit";
-            else if (riskCount > 0) cls += " is-risk";
+            const crit = children.some(function (m) { return (m.__risk || 0) >= 0.66; });
+            const atRisk = children.some(function (m) { return (m.__risk || 0) >= 0.33; });
+            if (crit) cls += " is-crit";
+            else if (atRisk) cls += " is-risk";
             const el = document.createElement("div");
             el.className = cls;
             el.style.width = el.style.height = "34px";
@@ -38,14 +59,35 @@
     });
     clusterGroup.addTo(map);
 
-    const footprintLayer = L.layerGroup().addTo(map);
+    // district boundary overlay
+    const boundaryLayer = L.layerGroup();
+    if (boundary.length) {
+        L.polygon(boundary, {
+            color: "#1b7f8e",
+            weight: 2,
+            dashArray: "6 5",
+            fillColor: "#3da2b1",
+            fillOpacity: 0.06,
+            className: "bugesera-boundary"
+        })
+            .bindTooltip(district + " District", { sticky: true })
+            .addTo(boundaryLayer);
+    }
+    boundaryLayer.addTo(map);
+
     const rainfallLayer = L.layerGroup();
 
     const buildDropletIcon = function (color) {
         const el = document.createElement("div");
         el.className = "amazi-pin";
         el.style.setProperty("--pin", color);
-        return L.divIcon({ className: "amazi-pin", html: el.outerHTML, iconSize: [26, 30], iconAnchor: [13, 28], popupAnchor: [0, -30] });
+        return L.divIcon({
+            className: "amazi-pin",
+            html: el.outerHTML,
+            iconSize: [26, 30],
+            iconAnchor: [13, 28],
+            popupAnchor: [0, -30]
+        });
     };
 
     const makeMarker = function (p) {
@@ -59,6 +101,7 @@
             '<div class="pp-row"><span class="pp-k">Status</span><span style="color:' + color + ';font-weight:600">' + p.status + '</span></div>' +
             '<div class="pp-row"><span class="pp-k">Risk</span><span>' + Math.round(p.risk * 100) + '%</span></div>' +
             '<div class="pp-row"><span class="pp-k">Technology</span><span>' + p.technology + '</span></div>' +
+            (p.sector ? '<div class="pp-row"><span class="pp-k">Sector</span><span>' + p.sector + '</span></div>' : '') +
             '<div class="pp-row"><span class="pp-k">District</span><span>' + p.district + '</span></div>' +
             '<div style="margin-top:.5rem"><a href="' + "/dashboard/water-points/" + p.id + '">Open point →</a></div>' +
             '</div>'
@@ -66,31 +109,6 @@
         return marker;
     };
 
-    // district footprints: dashed coverage ring around each district centroid
-    const footprintFor = function (districtPoints) {
-        const n = districtPoints.length;
-        if (!n) return null;
-        let cx = 0, cy = 0;
-        districtPoints.forEach(function (p) { cx += p.lat; cy += p.lng; });
-        cx /= n; cy /= n;
-        let radius = 0;
-        districtPoints.forEach(function (p) {
-            const d = map.distance([cx, cy], [p.lat, p.lng]);
-            if (d > radius) radius = d;
-        });
-        radius = Math.max(radius + 3000, 8000);
-        return L.circle([cx, cy], {
-            radius: radius,
-            color: "#1b7f8e",
-            weight: 1.5,
-            dashArray: "4 6",
-            fillColor: "#3da2b1",
-            fillOpacity: 0.05,
-            className: "footprint-circle"
-        }).bindTooltip(districtPoints[0].district, { permanent: false });
-    };
-
-    // rainfall overlay: translucent halos sized by mm/month
     const rainfallFor = function (p) {
         const mm = p.rainfall || 0;
         const r = Math.min(1200 + mm * 30, 6000);
@@ -103,52 +121,63 @@
         }).bindTooltip(p.uid + " · " + Math.round(mm) + " mm/mo");
     };
 
-    const renderFootprints = function () {
-        footprintLayer.clearLayers();
-        const byDistrict = {};
-        points.forEach(function (p) {
-            (byDistrict[p.district] = byDistrict[p.district] || []).push(p);
-        });
-        Object.keys(byDistrict).forEach(function (name) {
-            const ring = footprintFor(byDistrict[name]);
-            if (ring) footprintLayer.addLayer(ring);
-        });
-    };
-
     const renderRainfall = function () {
         rainfallLayer.clearLayers();
         points.forEach(function (p) { rainfallLayer.addLayer(rainfallFor(p)); });
     };
 
     // filtering
-    let filter = { q: "", status: "", district: "", minRisk: 0 };
+    const filter = { q: "", status: "", sector: "", minRisk: 0 };
+
+    const countEl = function (id) { return document.getElementById(id); };
+
+    const updateCounts = function (matched) {
+        const shown = matched.length;
+        const total = points.length;
+        const num = function (status) {
+            return matched.filter(function (p) { return p.status === status; }).length;
+        };
+        const set = function (id, v) {
+            const el = countEl(id);
+            if (el) el.textContent = v;
+        };
+        set("count-functional", num("Functional"));
+        set("count-risk", num("At Risk"));
+        set("count-nonfunc", num("Non-Functional"));
+        set("count-repair", num("Under Repair"));
+        const stat = countEl("map-count");
+        if (stat) stat.textContent = total ? "Showing " + shown + " / " + total + " points" : "No water points";
+    };
 
     const applyFilters = function () {
         clusterGroup.clearLayers();
         const matched = points.filter(function (p) {
             if (filter.status && p.status !== filter.status) return false;
-            if (filter.district && p.district !== filter.district) return false;
+            if (filter.sector && p.sector !== filter.sector) return false;
             if (p.risk < filter.minRisk) return false;
             if (filter.q) {
-                const hay = (p.uid + " " + p.technology + " " + p.district).toLowerCase();
+                const hay = (p.uid + " " + (p.technology || "") + " " + (p.district || "") + " " + (p.sector || "")).toLowerCase();
                 if (hay.indexOf(filter.q.toLowerCase()) === -1) return false;
             }
             return true;
         });
         matched.forEach(function (p) { clusterGroup.addLayer(makeMarker(p)); });
 
-        if (document.getElementById("layer-footprints") && document.getElementById("layer-footprints").checked) {
-            renderFootprints();
-        }
-        if (document.getElementById("layer-rainfall") && document.getElementById("layer-rainfall").checked) {
-            renderRainfall();
-        }
+        if (countEl("layer-rainfall") && countEl("layer-rainfall").checked) renderRainfall();
 
-        const any = matched.length || points.length;
+        updateCounts(matched);
         return matched;
     };
 
-    const fit = function () {
+    const fitBounds = function (b, zoom) {
+        if (b.isValid()) {
+            map.fitBounds(b.pad(0.12), { maxZoom: zoom || 12, animate: false });
+        } else {
+            map.setView(districtBounds.getCenter(), 11);
+        }
+    };
+
+    const fitDistrict = function () {
         if (focusId) {
             const p = points.find(function (x) { return x.id === focusId; });
             if (p) {
@@ -161,65 +190,86 @@
                 return;
             }
         }
+        fitBounds(districtBounds);
+    };
+
+    const refit = function (matched) {
+        if (focusId) { fitDistrict(); return; }
         const markers = [];
         clusterGroup.eachLayer(function (layer) {
-            if (layer instanceof L.Marker) markers.push([layer.getLatLng().lat, layer.getLatLng().lng]);
+            if (layer instanceof L.Marker) markers.push(layer.getLatLng());
         });
-        if (markers.length) {
-            map.fitBounds(L.latLngBounds(markers).pad(0.15), { maxZoom: 11 });
+        if (markers.length && (filter.q || filter.status || filter.sector || filter.minRisk > 0)) {
+            fitBounds(L.latLngBounds(markers));
         } else {
-            map.setView([-1.95, 29.87], 8);
+            fitDistrict();
         }
     };
 
     // wire UI
-    const wire = function () {
-        const q = document.getElementById("map-search");
-        const status = document.getElementById("map-status");
-        const district = document.getElementById("map-district");
-        const reset = document.getElementById("map-reset");
-        const layersToggle = document.getElementById("map-layers-toggle");
-        const layerPanel = document.getElementById("map-layers");
-        const recenter = document.getElementById("map-recenter");
-        const cbPoints = document.getElementById("layer-points");
-        const cbFoot = document.getElementById("layer-footprints");
-        const cbRain = document.getElementById("layer-rainfall");
+    const q = document.getElementById("map-search");
+    const status = document.getElementById("map-status");
+    const risk = document.getElementById("map-risk");
+    const sector = document.getElementById("map-sector");
+    const reset = document.getElementById("map-reset");
+    const layersToggle = document.getElementById("map-layers-toggle");
+    const layerPanel = document.getElementById("map-layers");
+    const recenter = document.getElementById("map-recenter");
+    const cbPoints = document.getElementById("layer-points");
+    const cbBoundary = document.getElementById("layer-boundary");
+    const cbRain = document.getElementById("layer-rainfall");
 
-        const refresh = function () {
-            if (q) filter.q = q.value;
-            if (status) filter.status = status.value;
-            if (district) filter.district = district.value;
-            filter.minRisk = 0;
-            applyFilters();
-        };
-
-        if (q) q.addEventListener("input", refresh);
-        if (status) status.addEventListener("change", refresh);
-        if (district) district.addEventListener("change", refresh);
-        if (reset) reset.addEventListener("click", function () {
-            if (q) q.value = ""; if (status) status.value = ""; if (district) district.value = "";
-            refresh();
-        });
-
-        if (layersToggle && layerPanel) {
-            layersToggle.addEventListener("click", function () {
-                const open = layerPanel.classList.toggle("is-open");
-                layersToggle.setAttribute("aria-expanded", open ? "true" : "false");
-            });
-        }
-        if (cbPoints) cbPoints.addEventListener("change", function () {
-            if (cbPoints.checked) clusterGroup.addTo(map); else map.removeLayer(clusterGroup);
-        });
-        if (cbFoot) cbFoot.addEventListener("change", function () {
-            if (cbFoot.checked) { renderFootprints(); footprintLayer.addTo(map); } else map.removeLayer(footprintLayer);
-        });
-        if (cbRain) cbRain.addEventListener("change", function () {
-            if (cbRain.checked) { renderRainfall(); rainfallLayer.addTo(map); } else map.removeLayer(rainfallLayer);
-        });
-        if (recenter) recenter.addEventListener("click", fit);
+    const refresh = function () {
+        if (q) filter.q = q.value;
+        if (status) filter.status = status.value;
+        if (sector) filter.sector = sector.value;
+        if (risk) filter.minRisk = parseFloat(risk.value) || 0;
+        const matched = applyFilters();
+        refit(matched);
     };
 
+    const pendingRefit = (function () {
+        let t = null;
+        return function () {
+            if (t) clearTimeout(t);
+            t = setTimeout(function () { refit(applyFilters()); }, 300);
+        };
+    })();
+
+    if (q) q.addEventListener("input", pendingRefit);
+    if (status) status.addEventListener("change", refresh);
+    if (risk) risk.addEventListener("change", refresh);
+    if (sector) sector.addEventListener("change", refresh);
+    if (reset) reset.addEventListener("click", function () {
+        if (q) q.value = "";
+        if (status) status.value = "";
+        if (risk) risk.value = "0";
+        if (sector) sector.value = "";
+        refresh();
+    });
+
+    if (layersToggle && layerPanel) {
+        layersToggle.addEventListener("click", function () {
+            const open = layerPanel.classList.toggle("is-open");
+            layersToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+    }
+    if (cbPoints) cbPoints.addEventListener("change", function () {
+        if (cbPoints.checked) clusterGroup.addTo(map); else map.removeLayer(clusterGroup);
+    });
+    if (cbBoundary) cbBoundary.addEventListener("change", function () {
+        if (cbBoundary.checked) boundaryLayer.addTo(map); else map.removeLayer(boundaryLayer);
+    });
+    if (cbRain) cbRain.addEventListener("change", function () {
+        if (cbRain.checked) { renderRainfall(); rainfallLayer.addTo(map); } else map.removeLayer(rainfallLayer);
+    });
+    if (recenter) recenter.addEventListener("click", function () { fitDistrict(); });
+
     applyFilters();
-    wire();
-    fit();
+    fitDistrict();
+
+    // ensure the map measures correctly after the layout settles
+    if (window.requestAnimationFrame) {
+        requestAnimationFrame(function () { map.invalidateSize(); });
+    }
 })();
