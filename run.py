@@ -23,9 +23,9 @@ def send_test_email_command(recipient):
 
     log_smtp_config()
     msg = Message(
-        subject="Smart Water - SMTP test",
+        subject="AI-BASED WATER POINT FAILURE PREDICTION SYSTEM - SMTP test",
         recipients=[recipient],
-        body="This is a test email from the Smart Water system.",
+        body="This is a test email from the AI-BASED WATER POINT FAILURE PREDICTION SYSTEM.",
     )
     mail.send(msg)
     click.echo(f"OK: email sent to {recipient}")

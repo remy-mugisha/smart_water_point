@@ -26,7 +26,7 @@ def test_default_settings_present(app):
         settings = all_settings()
         assert len(settings) == 6
         assert get_setting("risk_threshold", 0.5) == 0.5
-        assert get_setting("app_name") == "Smart Water Point Monitoring System"
+        assert get_setting("app_name") == "AI-BASED WATER POINT FAILURE PREDICTION SYSTEM"
 
 
 def test_settings_post_updates_value_and_pdf(app):

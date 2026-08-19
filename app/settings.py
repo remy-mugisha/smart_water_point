@@ -16,7 +16,7 @@ SETTINGS = [
         "key": "app_name",
         "label": "System Name",
         "type": "string",
-        "default": "Smart Water Point Monitoring System",
+        "default": "AI-BASED WATER POINT FAILURE PREDICTION SYSTEM",
         "description": "Name shown on exported reports and notifications.",
     },
     {

@@ -55,7 +55,7 @@ def build_pdf_report(title, generated_by, filters, summary_stats, table_headers,
     title_style = ParagraphStyle("ReportTitle", parent=styles["Title"], textColor=colors.HexColor(PRIMARY_HEX), fontSize=18)
     meta_style = ParagraphStyle("ReportMeta", parent=styles["Normal"], textColor=colors.HexColor("#475467"), fontSize=9)
 
-    org_name = current_app.config.get("APP_NAME", "Smart Water Point Monitoring System")
+    org_name = current_app.config.get("APP_NAME", "AI-BASED WATER POINT FAILURE PREDICTION SYSTEM")
     elements = [
         Paragraph(org_name, meta_style),
         Paragraph(title, title_style),
@@ -121,7 +121,7 @@ def build_excel_report(title, generated_by, filters, summary_stats, table_header
     ws = wb.active
     ws.title = re.sub(r'[\\/*?:\[\]]', '-', title)[:31]
 
-    org_name = current_app.config.get("APP_NAME", "Smart Water Point Monitoring System")
+    org_name = current_app.config.get("APP_NAME", "AI-BASED WATER POINT FAILURE PREDICTION SYSTEM")
     bold = Font(bold=True)
     header_fill = PatternFill(start_color="0F6F8F", end_color="0F6F8F", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")

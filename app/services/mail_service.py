@@ -79,12 +79,12 @@ def send_welcome_email(recipient_email, recipient_name, temp_password, login_url
             email=recipient_email,
             temp_password=temp_password,
             login_url=login_url,
-            app_name=current_app.config.get("APP_NAME", "Smart Water Point Monitoring System"),
+            app_name=current_app.config.get("APP_NAME", "AI-BASED WATER POINT FAILURE PREDICTION SYSTEM"),
         )
         send_email(
             to_email=recipient_email,
             to_name=recipient_name,
-            subject=f"Welcome to {current_app.config.get('APP_NAME', 'Smart Water Monitoring')}",
+            subject=f"Welcome to {current_app.config.get('APP_NAME', 'AI-BASED WATER POINT FAILURE PREDICTION SYSTEM')}",
             html_content=html_body,
         )
         return True, None

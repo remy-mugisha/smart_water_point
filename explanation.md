@@ -45,11 +45,15 @@ app/
   auth.py                        register / login / logout / profile / settings /
                                 change-password / temp-password flow
   admin.py                       admin dashboard, user approval/role/toggle/delete,
-                                technician CRUD, password reset, audit-log viewer,
-                                report-log viewer, model-performance page
-  dashboard.py                   home dashboard, map, water-point list/detail,
-                                CSV/XLSX upload, AI prediction glue, district view,
-                                prediction center (single-point predict)
+                                 technician CRUD, password reset, audit-log viewer,
+                                 report-log viewer, model-performance page
+  api.py                         REST endpoints (water points, status updates,
+                                 CSV upload, predict) with JSON auth and
+                                 district scoping
+  dashboard.py                   home dashboard, scoped GIS map (Bugesera boundary
+                                 polygon + sector/risk filters), water-point list/
+                                 detail, CSV/XLSX upload, AI prediction glue,
+                                 district view, prediction center (single-point predict)
   ml_features.py                 shared feature engineering (train + inference)
   ml_train.py                    training pipeline: clean → engineer → fit → evaluate →
                                 save artifacts + plots (CLI: flask train-model)
@@ -62,7 +66,8 @@ app/
   report_export.py               shared ReportLab/openpyxl PDF & Excel builders
   settings.py                    runtime key/value system settings, persisted + cached
   rwanda_geo.py                  Bugesera administrative hierarchy (15 sectors,
-                                72 cells, 581 villages) from ngabovictor/Rwanda
+                                 72 cells, 581 villages) + district boundary polygon
+                                 from geoBoundaries RWA ADM2 / ngabovictor/Rwanda
   forms.py                       all WTForms definitions (auth, tasks, reports, upload)
   utils.py                       utcnow() helper, role_required/api_role_required,
                                 scoped_by_district(), user_can_access_district(),
@@ -224,6 +229,19 @@ The admin experience (`/admin/`) includes:
 - `scripts/seed_rwb_sources.py` — imports water sources from the RWB registry (`raw data/rwanda_water_users.xlsx`), infers catchment from usage types, assigns an `industrial_pressure_score` from a hand-weighted usage lookup, and persists them to the `water_sources` table. These pressure scores feed the catchment-pressure feature in the ML model.
 - `notebooks/exploratory_analysis.py` — standalone EDA script (no Jupyter dependency) that generates distribution, correlation, box-plot, and scatter visualizations.
 
+### GIS Map
+
+The interactive Leaflet map (`/dashboard/map`) is scoped to the case-study district
+(Bugesera by default, driven by the `default_district` system setting). It overlays
+a simplified Bugesera boundary polygon (~90 vertices from geoBoundaries RWA ADM2,
+NISR 2022 census mapping) so every pin is visually bounded to one territory. A
+floating scope bar shows the district name and live status counts (Functional, At
+Risk, Non-Functional, Under Repair). Users filter points by sector and AI risk level
+(≥33% or ≥66%), search by UID/sector/village, and toggle the boundary and rainfall
+layers. Water point data is passed to the frontend via a single `window.AMAZI_MAP`
+global object containing the district, boundary coordinates, and point attributes,
+which the map script consumes to render markers and handle interactions.
+
 ---
 
 ## 5. Areas for improvement (senior-developer assessment)
@@ -235,6 +253,7 @@ I've grouped these by how much they actually matter for an academic project.
 - **`datetime.utcnow()` deprecation.** The codebase now uses a `utcnow()` helper in `utils.py` that wraps `datetime.now(timezone.utc).replace(tzinfo=None)` — this keeps naive timestamps (matching SQLite's storage) while avoiding the deprecation warning. However, a few `datetime.utcnow()` call-sites may still linger; the test suite currently emits 55 warnings, mostly `LegacyAPIWarning` for `Query.get()` (the pre-SQLAlchemy-2.0 query API). Migrating `query.get()` → `db.session.get()` is a mechanical find-replace across `admin.py` (5 call-sites), `tasks.py` (7 call-sites), `notifications.py` (1 call-site), and `app/services/technician_service.py` (1 call-site).
 - **Duplicate `predict_batch`/legacy inference paths.** `dashboard.py` still defines `load_prediction_model()` and `predict_risk()` (the old single-model-load + threshold-based binary label path), used only by the `/api/predict` endpoint. The newer `ml_inference.py` module is the canonical path for everything else. Consolidating `/api/predict` to use `ml_inference.predict_batch` would remove redundant code — worth noting if asked about consistency.
 - **`_index_context` `dict()` bug.** The dashboard's district health aggregation once did `dict()` on 3-tuples from a `GROUP BY` query, which silently dropped data. This has been fixed — the current version uses a dict comprehension that correctly maps `(district, status)` pairs to counts without losing data.
+- **Dead `requests` dependency.** `requirements.txt` still lists `requests>=2.31`, but the codebase no longer imports it (the Brevo REST-API path was replaced with Flask-Mail SMTP in the Gmail migration). Removing it would clean up the dependency tree.
 
 ### Worth mentioning as known, deliberate scope boundaries
 

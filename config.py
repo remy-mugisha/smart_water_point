@@ -19,7 +19,7 @@ class Config:
     UPLOAD_FOLDER = str(BASE_DIR / "data" / "uploaded")
     ALLOWED_EXTENSIONS = {"csv", "xlsx"}
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
-    APP_NAME = "Smart Water Point Monitoring System"
+    APP_NAME = "AI-BASED WATER POINT FAILURE PREDICTION SYSTEM"
     ADMIN_EMAIL = "admin@smartwater.rw"
 
     # Flask-Mail / SMTP
